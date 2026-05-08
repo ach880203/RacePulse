@@ -1,0 +1,164 @@
+# =============================================================================
+# RacePulse - 로컬 개발 환경 Docker Compose 설정
+# =============================================================================
+# 사용법:
+#   1. .env.example을 복사해 .env 파일 생성 후 값 입력
+#   2. make up 또는 docker-compose up -d 실행
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL - 메인 관계형 데이터베이스
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16
+    container_name: racepulse-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"           # 호스트:컨테이너 포트 매핑
+    environment:
+      POSTGRES_DB: racepulse
+      POSTGRES_USER: racepulse
+      POSTGRES_PASSWORD: racepulse_dev
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # 컨테이너 재시작 후에도 데이터 유지
+    networks:
+      - racepulse-network
+    healthcheck:
+      # PostgreSQL이 실제로 쿼리를 받을 수 있는 상태인지 확인
+      test: ["CMD-SHELL", "pg_isready -U racepulse -d racepulse"]
+      interval: 10s     # 10초마다 헬스체크 실행
+      timeout: 5s       # 5초 안에 응답 없으면 실패
+      retries: 5        # 5번 실패하면 unhealthy 상태로 전환
+      start_period: 30s # 컨테이너 시작 후 30초 동안은 헬스체크 실패해도 무시
+
+  # ---------------------------------------------------------------------------
+  # Redis - 캐시 및 세션 저장소
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: racepulse-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data  # Redis AOF/RDB 파일 영속성 유지
+    networks:
+      - racepulse-network
+    healthcheck:
+      # Redis가 PING에 응답하는지 확인
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Spring Boot - 백엔드 API 서버
+  # ---------------------------------------------------------------------------
+  backend:
+    # TODO: backend/ 디렉토리에 Spring Boot 코드 생성 후 아래 주석 해제
+    # build:
+    #   context: ./backend
+    #   dockerfile: Dockerfile
+    image: eclipse-temurin:21-jre  # 임시 이미지 (실제 앱 없이 컨테이너만 기동 확인용)
+    container_name: racepulse-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Spring 프로파일 (dev 환경에서는 application-dev.yml 사용)
+      SPRING_PROFILES_ACTIVE: dev
+
+      # 데이터베이스 연결 정보 (컨테이너 간 통신은 서비스명으로)
+      DB_URL: jdbc:postgresql://postgres:5432/racepulse
+      DB_USERNAME: racepulse
+      DB_PASSWORD: racepulse_dev
+
+      # Redis 연결 정보
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      # JWT 시크릿 (개발용 임시값 - 운영에서는 반드시 변경)
+      JWT_SECRET: ${JWT_SECRET}
+
+      # 카카오 OAuth 2.0 (외부 .env 파일에서 주입)
+      KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID}
+      KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET}
+
+      # OpenAI API (외부 .env 파일에서 주입)
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy  # postgres가 healthy 상태일 때만 시작
+      redis:
+        condition: service_healthy  # redis가 healthy 상태일 때만 시작
+    networks:
+      - racepulse-network
+    healthcheck:
+      # Spring Boot Actuator 헬스 엔드포인트 확인
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/v1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s  # JVM 시작 시간을 고려해 넉넉히 설정
+
+  # ---------------------------------------------------------------------------
+  # FastAPI - Python ML 서버 (예측 모델, 데이터 수집)
+  # ---------------------------------------------------------------------------
+  ml-server:
+    # TODO: ml-server/ 디렉토리에 FastAPI 코드 생성 후 아래 주석 해제
+    # build:
+    #   context: ./ml-server
+    #   dockerfile: Dockerfile
+    image: python:3.11-slim  # 임시 이미지 (실제 앱 없이 컨테이너만 기동 확인용)
+    container_name: racepulse-ml-server
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # 데이터베이스 연결 (SQLAlchemy 형식)
+      DB_URL: postgresql://racepulse:racepulse_dev@postgres:5432/racepulse
+
+      # Redis 연결
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      # 한국마사회 API 키 (외부 .env 파일에서 주입)
+      KMA_API_KEY: ${KMA_API_KEY}
+
+      # 기상청 API 키 (외부 .env 파일에서 주입)
+      WEATHER_API_KEY: ${WEATHER_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - racepulse-network
+    healthcheck:
+      # FastAPI 헬스 엔드포인트 확인
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+# =============================================================================
+# 네트워크 설정
+# =============================================================================
+networks:
+  racepulse-network:
+    driver: bridge  # 컨테이너 간 통신을 위한 브리지 네트워크
+    name: racepulse-network
+
+# =============================================================================
+# 볼륨 설정 (데이터 영속성)
+# =============================================================================
+volumes:
+  postgres_data:
+    name: racepulse-postgres-data  # 컨테이너 삭제 후에도 데이터 유지
+  redis_data:
+    name: racepulse-redis-data
