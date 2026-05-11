@@ -12,7 +12,7 @@ services:
   # PostgreSQL - 메인 관계형 데이터베이스
   # ---------------------------------------------------------------------------
   postgres:
-    image: postgres:16
+    image: pgvector/pgvector:pg16
     container_name: racepulse-postgres
     restart: unless-stopped
     ports:

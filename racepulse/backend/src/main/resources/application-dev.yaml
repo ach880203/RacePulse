@@ -1,0 +1,88 @@
+# ML 서버(FastAPI, 포트 8000) 주소
+# CommentaryController가 AI 해설을 가져올 때 이 주소를 사용합니다.
+ml:
+  server:
+    url: http://localhost:8000
+
+spring:
+  # 데이터베이스 설정
+  datasource:
+    url: jdbc:postgresql://localhost:5432/racepulse
+    username: racepulse
+    password: racepulse_dev
+    driver-class-name: org.postgresql.Driver
+
+  # JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: validate       # Flyway가 테이블 관리하므로 validate만
+    show-sql: true             # 개발 중 SQL 로그 출력
+    properties:
+      hibernate:
+        format_sql: true       # SQL 보기 좋게 포맷
+    open-in-view: false
+
+  # Flyway 설정
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  # Redis 설정
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  # Security 쿠키 설정 (개발용)
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            client-id: ${KAKAO_CLIENT_ID}
+            client-secret: ${KAKAO_CLIENT_SECRET}
+            redirect-uri: http://localhost:8080/api/v1/auth/kakao/callback
+            authorization-grant-type: authorization_code
+            scope: profile_nickname, account_email
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
+
+# JWT 설정
+jwt:
+  secret: ${JWT_SECRET}
+  access-expiration: 3600000       # 1시간 (밀리초)
+  refresh-expiration: 86400000     # 24시간 (밀리초)
+  refresh-expiration-extended: 259200000  # 3일 (로그인 유지)
+
+# CORS 설정 (개발용)
+cors:
+  allowed-origins: http://localhost:3000
+
+# Swagger UI 활성화
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /api-docs
+
+# VAPID 설정 (Web Push 알림 서버 인증)
+# VAPID(Voluntary Application Server Identification)란?
+#   우리 서버가 "진짜 푸시 알림을 보내는 서버"임을 브라우저 푸시 서비스에 증명하는 키 쌍입니다.
+#   공개키(public-key)는 브라우저에 전달하고, 비밀키(private-key)는 서버에만 보관합니다.
+# 최초 1회 VapidKeyGenerator를 실행해서 키를 생성하고 .env에 저장하세요.
+vapid:
+  public-key: ${VAPID_PUBLIC_KEY}
+  private-key: ${VAPID_PRIVATE_KEY}
+  subject: mailto:admin@racepulse.com
+
+# 로그 설정
+logging:
+  level:
+    com.racepulse: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG

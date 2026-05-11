@@ -1,0 +1,51 @@
+# =============================================================================
+# RacePulse 루트 .gitignore
+# =============================================================================
+
+# 환경변수 파일 - 절대 커밋 금지
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+
+# 압축 파일
+*.zip
+*.tar.gz
+
+# Claude 내부 파일
+.claude/worktrees/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 로그
+*.log
+*.err
+*.out
+logs/
+
+# Python 가상환경
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+.next/
+
+# Gradle
+.gradle/
+build/
+
+# 런타임 파일
+bootrun.err
+bootrun.out

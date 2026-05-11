@@ -93,6 +93,7 @@
 ---
 
 ### 6️⃣ 웹디자이너 (DESIGN)
+
 - **담당**: UI/UX 디자인, 비주얼 아이덴티티, 디자인 시스템
 - **기술스택**: Figma, Adobe Illustrator (또는 동급 툴)
 - **책임 범위**:
@@ -108,6 +109,63 @@
   - 톤앤매너: 시네마틱, 고급스러움, 진지한 분석 플랫폼
   - "분석 플랫폼" 성격 유지 — 사행성 느낌 금지
   - FE TypeScript/Tailwind 구조에 맞는 디자인 토큰 제공
+
+---
+
+### 7️⃣ Git 관리자 (GIT)
+- **담당**: 코드 버전 관리, 브랜치 전략 실행, 코드 품질 게이트 관리
+- **책임 범위**:
+
+  **브랜치 관리**
+  - `main` — 배포 가능한 안정 코드만. 직접 push 금지, PR + 승인 후 머지만 허용
+  - `develop` — 개발 통합 브랜치. feature 브랜치의 머지 대상
+  - `feature/*` — 기능 단위 작업 브랜치. 완료 후 develop으로 PR
+  - `hotfix/*` — 긴급 버그 수정. main에서 분기 후 main + develop 동시 머지
+  - 브랜치 네이밍 기준 수립 (예: `feature/be-auth-login`, `feature/이슈번호-설명`)
+
+  **PR 관리**
+  - PR 템플릿 작성 및 관리
+  - PR 승인 기준 정의 (최소 승인자 수, 체크리스트)
+  - 머지 방식 결정 (Squash / Rebase / Merge commit)
+  - 충돌 발생 시 해결 주도 또는 가이드
+
+  **커밋 컨벤션 관리**
+  ```
+  feat: 새 기능
+  fix: 버그 수정
+  docs: 문서
+  style: 포맷 변경
+  refactor: 리팩토링
+  test: 테스트
+  chore: 빌드/설정
+  ```
+
+  **CI/CD 파이프라인**
+  - GitHub Actions 설정 및 관리
+  - PR 시 자동 빌드/테스트 확인
+  - main 머지 시 자동 배포 트리거
+
+  **Repository 보호 설정**
+  - main / develop Branch Protection Rule 설정 (직접 push 물리적 차단)
+  - 리뷰어 지정, 상태 체크 통과 필수 조건 관리
+
+  **이슈 트래킹 연동**
+  - GitHub Issues와 브랜치 연결 컨벤션 수립 및 유지
+
+  **버전 및 릴리즈 관리**
+  - Git 태그로 버전 관리 (v0.1.0, v1.0.0 등)
+  - Phase별 코드 프리징 + 릴리즈 노트 작성
+  - main 머지 = 배포 기준점 관리
+
+  **보안 관리**
+  - 민감 파일(.env 등) 커밋 방지 모니터링
+  - 실수로 커밋된 시크릿 이력 제거 주도
+
+  **Git 사용 가이드 문서화**
+  - 팀원 대상 Git 사용 가이드 작성 (자주 쓰는 명령어, 실수 복구 방법 등)
+
+- **우선순위**: 코드 안정성 > 브랜치 일관성 > 배포 속도
+- **보류**: Terraform/AWS 인프라 관리 → 배포 단계(Phase 4) 시점에 역할 재논의
 
 ---
 
@@ -228,19 +286,19 @@ BE: 인증 + 유저 + 경주데이터 저장/조회 → Spring Boot
 
 - [x] **ARCH**: 마사회 API 키 발급 완료 (총 21개 확인, 15개 즉시 사용)
 - [x] **ARCH**: 데이터 품질 체크리스트 확인 완료 → ML 기반 직행 결정
-- [x] **ARCH**: DB 테이블 목록 확정 → ✅ PostgreSQL, 즉시 24개 + Phase2 4개
-- [ ] **ARCH**: DB 스키마 상세 작성 (컬럼/인덱스/관계 정의)
+- [x] **ARCH**: DB 테이블 목록 확정 → ✅ 총 43개 / Phase별 분리 (Phase0 15개 / Phase1 12개 / Phase2 11개 / Phase3 5개)
+- [x] **ARCH**: DB 스키마 상세 작성 완료 → V1__phase0.sql (컬럼/인덱스/ENUM/트리거 포함)
 - [ ] **ARCH**: FastAPI APScheduler + Redis 수집 파이프라인 설계
 - [x] **BE**: Spring Boot API 엔드포인트 확정 → ✅ 39개 / /api/v1/ 버전 포함 (34→36 카카오 추가 → 38 알림설정 추가 → 39 refresh 추가)
 - [x] **BE**: 인증 보안 구조 확정 → ✅ JWT + Rotation + Family 감지 + BCrypt + Rate Limiting
 - [x] **BE**: 환경별 설정 분리 확정 → ✅ dev(HTTP) / prod(HTTPS) 프로파일
-- [ ] **BE**: Spring Boot 프로젝트 세팅 + Security 설정 구현
+- [x] **BE**: Spring Boot 프로젝트 세팅 + Security 설정 구현 완료
 - [ ] **BE**: 카카오 OAuth 2.0 연동 (로그인/회원가입)
-- [ ] **창현님**: 카카오 개발자 센터 앱 등록 + REST API 키 발급
+- [x] **창현님**: 카카오 개발자 센터 앱 등록 + REST API 키 발급 완료
 - [ ] **BE**: API 응답에 last_updated / data_status / next_update 필드 포함 설계
-- [ ] **FE**: 페이지 구조 (라우팅) 초안 작성
+- [x] **FE**: 페이지 구조 (라우팅) 초안 작성 완료 → 25개 라우트
 - [ ] **FE**: 데이터 상태 UI 컴포넌트 설계 (준비중 / 업데이트 예정 / 데이터 수집 중 / 기수변경 뱃지)
-- [ ] **PM**: Phase 0 상세 일정 수립
+- [x] **PM**: Phase 0 상세 일정 수립 완료
 - [x] **팀 전체**: 안건 1 확정 → ✅ 선택지 B (Spring Boot 메인, FastAPI 마이크로서비스)
 - [x] **팀 전체**: 안건 2 확정 → ✅ ML 기반 직행 (XGBoost/LightGBM, 2019년~데이터 활용)
 - [x] **팀 전체**: 안건 3 확정 → ✅ APScheduler 스케줄 수집 (아래 상세 일정 참조)
@@ -259,17 +317,31 @@ BE: 인증 + 유저 + 경주데이터 저장/조회 → Spring Boot
 - [x] **팀 전체**: Swagger/OpenAPI 추가 확정 ✅
 - [x] **팀 전체**: Git 브랜치 전략 확정 ✅ (main/develop/feature/*)
 - [x] **팀 전체**: 로깅 확정 ✅ (SLF4J+Logback 기본 / FastAPI logging)
-- [ ] **ARCH**: PostgreSQL Docker + 25개 테이블 init.sql 생성 및 실행 (Day 1) ← 오늘
-- [ ] **ARCH**: FastAPI 프로젝트 생성 + DB 연동 (Day 2)
-- [ ] **ARCH**: 마사회 API + 기상청 API 연동 테스트 (Day 3~4)
-- [ ] **BE**: Spring Boot 프로젝트 생성 + PostgreSQL + Security (Day 1) ← 오늘
-- [ ] **BE**: 카카오 OAuth 연동 (Day 3)
-- [ ] **BE**: Web Push 알림 로직 + VAPID 키 설정
-- [ ] **BE**: 기본 API 엔드포인트 3~5개 완성 (Day 4)
-- [ ] **FE**: React+TypeScript 프로젝트 생성 + 라우팅 뼈대 25개 (Day 1) ← 오늘
-- [ ] **FE**: PWA 설정 (manifest.json + Vite PWA Plugin + Service Worker)
-- [ ] **FE**: 홈/경주목록 페이지 뼈대 (Day 5)
-- [ ] **FE**: 인트로 영상 임시 연동 → 영상2.mp4 사용 (Day 5, Veo 3.1 완성 전까지)
+- [x] **ARCH**: V1__phase0.sql 생성 완료 → `racepulse/backend/src/main/resources/db/migration/V1__phase0.sql` (15개 테이블 + ENUM + 인덱스 + 트리거 + 기본 경마장 데이터)
+- [x] **ARCH**: PostgreSQL + Redis Docker 컨테이너 실행 완료 (healthy)
+- [x] **ARCH**: FastAPI 프로젝트 생성 완료 (Python 3.13 / FastAPI 0.115.12)
+- [x] **ARCH**: /health 정상 응답 확인 → {"status":"UP","service":"RacePulse ML Server"}
+- [x] **ARCH**: Swagger 문서 정상 확인 → http://localhost:8000/docs
+- [x] **ARCH**: FastAPI DB 연동 확인 완료 → PostgreSQL 16.13 연결 성공
+- [x] **ARCH**: 마사회 API 연동 완료 → 05-kra-api-prompt.md 기반 Codex 생성
+- [x] **ARCH**: 기상청 API 연동 완료 → 06-weather-api-prompt.md 기반 Codex 생성
+- [x] **ARCH**: APScheduler + Redis 파이프라인 완료 → 08-apscheduler-redis-prompt.md 기반 Codex 생성
+- [x] **BE**: Spring Boot 프로젝트 생성 완료 (Java 21 / Spring Boot 3.5.14)
+- [x] **BE**: SecurityConfig + HealthController 구현 완료
+- [x] **BE**: application.yaml / application-dev.yaml / application-prod.yaml 설정 완료
+- [x] **BE**: /api/v1/health 정상 응답 확인 → {"status":"UP","service":"RacePulse Backend"}
+- [x] **BE**: Swagger UI 정상 확인 → http://localhost:8080/swagger-ui.html
+- [x] **BE**: Flyway 베이스라인 설정 완료
+- [x] **BE**: 카카오 OAuth 연동 완료 → 07-kakao-oauth-prompt.md 기반 Codex 생성
+- [x] **BE**: Web Push 알림 로직 + VAPID 키 설정 완료 → 09-web-push-vapid-prompt.md 기반 Codex 생성
+- [ ] **FE**: FE-BE API 연동 → 10-fe-api-connect-prompt.md (에러 발생, 재시도 필요)
+- [x] **BE**: 기본 API 엔드포인트 완성 → 02-be-basic-api-prompt.md 기반 Codex 생성 (/api/v1/racecourses, /api/v1/races, /api/v1/horses)
+- [x] **FE**: React+TypeScript 프로젝트 생성 완료 (React 18 / Vite / TypeScript)
+- [x] **FE**: Tailwind CSS v4 설정 완료 (brand-navy, brand-gold 토큰 포함)
+- [x] **FE**: 라우팅 뼈대 25개 완료 → http://localhost:3000 정상 확인
+- [x] **FE**: PWA 설정 완료 → 03-pwa-prompt.md 기반 Codex 생성
+- [x] **FE**: 홈/경주목록 페이지 뼈대 완료 → 04-home-page-prompt.md 기반 Codex 생성
+- [x] **FE**: 인트로 영상 연동 완료 → 01-intro-video-prompt.md 기반 Codex 생성
 - [ ] **DESIGN**: Figma 컬러 팔레트 + 디자인 토큰 초안 (Day 5)
 - [x] **팀 전체**: 2차 회의 확정 → ✅ DB 스키마 25개 / 폰트(Playfair Display+Inter) / Tailwind brand 토큰 / 프로젝트 세팅 프롬프트 4개
 
@@ -430,22 +502,98 @@ BE: 인증 + 유저 + 경주데이터 저장/조회 → Spring Boot
 - Spring Boot JPA dialect만 변경, 코드는 MariaDB와 동일
 - 포트폴리오 임팩트 높음 (선택 이유가 프로젝트 목적과 연결)
 
-### 즉시 생성 테이블 — 25개
+### 전체 테이블 — 43개 (창현님 확정 / Phase별 분리)
 
-> 2차 회의 재점검: 24→25 (notification_settings 독립 분리 + odds_history Phase2→즉시 포함)
+> 최초 25개 → 논의 끝에 55개 제안 → 통합/제거 후 43개 확정
+> Flyway 마이그레이션 도구 사용: V1~V4 파일로 Phase별 관리
 
-| 분류 | 테이블 | 수 |
-|------|--------|----|
-| **마스터** | horses, jockeys, trainers, racecourses | 4 |
-| **경주** | races, race_entries, race_results | 3 |
-| **이력** | track_conditions, horse_weight_history, jockey_changes, entry_cancellations, horse_clinic, horse_ratings_history, odds_history | 7 |
-| **날씨** | weather_forecasts | 1 |
-| **ML/AI** | predictions, prediction_accuracy_logs, model_versions, ai_commentary | 4 |
-| **수집** | collection_logs | 1 |
-| **유저** | users, favorites, user_views, user_preferences, notification_settings | 5 |
+---
 
-### Phase 2 이후 테이블 — 3개
-`horse_training_logs` / `race_sectional_detail` / `search_history`
+#### 🟢 Phase 0 — 즉시 생성 (15개) `V1__phase0.sql`
+
+| # | 테이블 | 비고 |
+|---|--------|------|
+| 1 | `horses` | 말 마스터 + coat_color, photo_url, thumbnail_url 컬럼 포함 |
+| 2 | `jockeys` | 기수 마스터 |
+| 3 | `trainers` | 조교사 마스터 |
+| 4 | `racecourses` | 경마장 마스터 |
+| 5 | `races` | 경주 + race_class, race_grade, pace 컬럼 포함 |
+| 6 | `race_entries` | 출전명단 + is_debut, is_comeback, rest_days, class_change, distance_change 컬럼 포함 |
+| 7 | `race_results` | 경주 결과 |
+| 8 | `track_conditions` | 트랙 상태 |
+| 9 | `horse_weight_history` | 마체중 이력 |
+| 10 | `jockey_changes` | 기수변경 이력 |
+| 11 | `weather_forecasts` | 날씨 예보 |
+| 12 | `collection_logs` | 수집 로그 + null_count, anomaly_count, quality_score, quality_status 컬럼 포함 |
+| 13 | `users` | 유저 |
+| 14 | `user_preferences` | 설정 + theme DEFAULT 'dark' 포함 |
+| 15 | `refresh_tokens` | JWT Refresh Token 보안 관리 |
+
+---
+
+#### 🟡 Phase 1 — 서비스 오픈 전 (12개) `V2__phase1.sql`
+
+| # | 테이블 | 비고 |
+|---|--------|------|
+| 16 | `predictions` | ML 예측 결과 |
+| 17 | `prediction_accuracy_logs` | 예측 정확도 추적 |
+| 18 | `model_versions` | ML 모델 버전 관리 |
+| 19 | `ai_commentary` | AI 해설 (PRE/POST) |
+| 20 | `odds_history` | 배당률 이력 + opening/intermediate/final/movement_rate 컬럼 포함 |
+| 21 | `favorites` | 즐겨찾기 |
+| 22 | `user_views` | 조회 이력 |
+| 23 | `notification_settings` | 알림 설정 (유형별) |
+| 24 | `push_subscriptions` | Web Push VAPID 구독 정보 |
+| 25 | `entry_cancellations` | 출전 취소 이력 |
+| 26 | `race_payouts` | 경주 후 실제 환수금 |
+| 27 | `system_event_log` | 시스템 이벤트 통합 로그 |
+
+---
+
+#### 🔵 Phase 2 — ML 고도화 (11개) `V3__phase2.sql`
+
+| # | 테이블 | 비고 |
+|---|--------|------|
+| 28 | `horse_breakdown_stats` | 거리/조건/코스/중량별 말 성적 통합 (stat_type 구분) |
+| 29 | `combination_stats` | 기수-말 / 조교사-말 조합 성적 통합 |
+| 30 | `participant_form_stats` | 기수/조교사 최근 30/60/90일 폼 통합 |
+| 31 | `horse_form_index` | 말 최근 폼 점수 (가중 계산) |
+| 32 | `horse_running_style` | 말별 주행 스타일 (선두/중간/추입) |
+| 33 | `gate_bias_stats` | 경마장별 게이트 편향 통계 |
+| 34 | `ml_feature_store` | 예측용 피처 사전 계산 저장 (JSONB) |
+| 35 | `feature_importance_log` | ML 피처 중요도 기록 |
+| 36 | `equipment_changes` | 블링커 등 장비 변경 이력 |
+| 37 | `rival_records` | 말간 직접 대결 이력 |
+| 38 | `horse_pedigree` | 혈통 정보 (sire_id/dam_id FK) |
+
+---
+
+#### 🟣 Phase 3 — 완성도 (5개) `V4__phase3.sql`
+
+| # | 테이블 | 비고 |
+|---|--------|------|
+| 39 | `horse_clinic` | 말 진료/부상 이력 |
+| 40 | `horse_ratings_history` | 레이팅 변동 이력 |
+| 41 | `race_highlight_moments` | 이변/기록/DQ 등 하이라이트 이벤트 |
+| 42 | `search_keywords` | 인기 검색어 집계 |
+| 43 | `api_rate_limit_log` | API 일별 사용량 이력 |
+
+---
+
+### 통합/제거 처리 내역
+
+| 처리 | 원래 테이블 | 결과 |
+|------|------------|------|
+| 통합 | horse_stat_by_distance + horse_stat_by_condition + horse_course_stats + weight_performance_stats | → `horse_breakdown_stats` |
+| 통합 | jockey_horse_stats + trainer_horse_stats | → `combination_stats` |
+| 통합 | jockey_form_stats + trainer_form_stats | → `participant_form_stats` |
+| 컬럼 흡수 | odds_movement_log | → `odds_history`에 포함 |
+| 컬럼 흡수 | pace_scenario | → `races`에 포함 |
+| 컬럼 흡수 | race_entry_flags | → `race_entries`에 포함 |
+| 컬럼 흡수 | horse_visual_profile | → `horses`에 포함 |
+| 컬럼 흡수 | data_collection_health | → `collection_logs`에 포함 |
+| 제거 | schema_change_log | Flyway가 대체 |
+| 제거 | race_class_movement_history | race_entries + races로 도출 가능 |
 
 ### 날씨 데이터
 - 기상청 단기예보 + 중기예보 API (data.go.kr, 이미 신청 완료)
@@ -711,15 +859,17 @@ userId / role / tier / exp
 - `race_entries`: id, race_id(FK), horse_id(FK), jockey_id(FK), trainer_id(FK), gate_no, burden_weight, horse_weight, horse_weight_diff, rating, odds_win, odds_place, data_status(ENUM: READY/UPDATING/COLLECTED/JOCKEY_CHANGED), created_at, updated_at
 - `race_results`: id, race_id(FK), horse_id(FK), race_entry_id(FK), rank, record_time, margin, section_1~6(VARCHAR), created_at
 
-**이력 (8개)**
+**이력 (7개)**
 - `track_conditions`: id, race_id(FK), meet_code, rc_date, moisture_rate, condition(ENUM: DRY/WET/HUMID/SATURATED), recorded_at
 - `horse_weight_history`: id, horse_id(FK), race_id(FK), rc_date, weight, weight_diff, recorded_at
 - `jockey_changes`: id, race_entry_id(FK), race_id(FK), horse_id(FK), prev_jockey_id(FK), new_jockey_id(FK), changed_at, reason
 - `entry_cancellations`: id, race_id(FK), horse_id(FK), race_entry_id(FK), reason, cancelled_at
 - `horse_clinic`: id, horse_id(FK), diagnosis, treatment, clinic_date, return_expected_date, created_at
 - `horse_ratings_history`: id, horse_id(FK), rating_1~4, recorded_date, created_at
-- `weather_forecasts`: id, meet_code, forecast_date, temp_min, temp_max, precipitation_prob, wind_speed, condition, source, created_at, updated_at
 - `odds_history`: id, race_entry_id(FK), race_id(FK), odds_win, odds_place, odds_quinella, recorded_at
+
+**날씨 (1개)**
+- `weather_forecasts`: id, meet_code, forecast_date, temp_min, temp_max, precipitation_prob, wind_speed, condition, source, created_at, updated_at
 
 **ML/AI (4개)**
 - `predictions`: id, race_id(FK), horse_id(FK), race_entry_id(FK), model_version_id(FK), predicted_rank, win_probability, place_probability, feature_snapshot(JSONB), created_at
@@ -738,6 +888,21 @@ userId / role / tier / exp
 - `notification_settings`: id, user_id(FK), type(ENUM: RACE_START/JOCKEY_CHANGE/RESULT), is_enabled, created_at, updated_at
 
 ---
+
+---
+
+#### ✅ 팀 구성 변경 (창현님 확정)
+
+- **Git 관리자 (GIT) 신규 추가** — 브랜치 전략, PR 관리, CI/CD, 버전 관리, Git 가이드 문서화 담당
+- **Terraform/AWS 인프라 역할** — Phase 4 시점에 별도 역할 재논의
+- **총 팀 구성**: BE / FE / ARCH / PM / WR / DESIGN / GIT — 7명 체제 확정
+
+---
+
+#### ✅ 외부 API 확정 (창현님 확정)
+
+- 마사회 / 기상청 / 카카오 OAuth / OpenAI GPT — .env 기입 완료
+- 결제: KakaoPay → **포트원(PortOne)** 으로 변경, Freemium 도입 시 연동
 
 ---
 
@@ -775,6 +940,15 @@ userId / role / tier / exp
 
 ---
 
+#### ✅ DB 테이블 최종 확정 — 43개 Phase별 분리 (창현님 확정)
+
+- 전체 제안 55개 → 통합/제거 후 **43개** 확정
+- **Flyway** 마이그레이션 도구 도입 확정 (Spring Boot 의존성 추가)
+- Phase 0 (15개) → Phase 1 (12개) → Phase 2 (11개) → Phase 3 (5개)
+- 상세 목록은 "DB 설계 확정" 섹션 참고
+
+---
+
 #### ✅ 안건 3~5: 오늘 실행할 프롬프트 4개 확정
 
 **프롬프트 #1 — DB 스키마 (init.sql)**
@@ -791,6 +965,27 @@ userId / role / tier / exp
 
 #### ✅ 안건 6: 인트로 영상
 - Veo 3.1 접근권 미확보 → Day 5에 영상2.mp4(6.4MB)로 임시 연동, Veo 완성 후 교체
+
+---
+
+#### ✅ Day 1 작업 완료 (2026-05-08)
+
+**DB / 인프라**
+- PostgreSQL + Redis Docker 컨테이너 실행 완료 (healthy)
+- V1__phase0.sql 실행 완료 → 15개 테이블 생성 확인
+- Flyway 베이스라인 설정 완료
+
+**Spring Boot**
+- 프로젝트 생성: Java 21 / Spring Boot 3.5.14 / Gradle / YAML
+- 패키지 구조 생성: domain(user/race/horse/prediction/commentary) + global(config/security/exception/response)
+- SecurityConfig: STATELESS / JWT 방식 / permitAll 설정
+- HealthController: GET /api/v1/health → {"status":"UP"} 확인
+- application.yaml / application-dev.yaml / application-prod.yaml 설정 완료
+- Swagger UI 정상 확인: http://localhost:8080/swagger-ui.html
+- 의존성 문서: `racepulse/docs/dependencies.md` 저장 완료
+
+**다음 작업 (Day 2)**
+- FastAPI 프로젝트 생성 + DB 연동
 
 ---
 
