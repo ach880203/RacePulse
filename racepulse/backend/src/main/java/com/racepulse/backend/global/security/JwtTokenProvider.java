@@ -22,6 +22,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Date;
 import java.util.UUID;
 
@@ -51,9 +53,10 @@ public class JwtTokenProvider {
             @Value("${jwt.refresh-expiration}") long refreshExpiration,
             @Value("${jwt.refresh-expiration-extended}") long refreshExpirationExtended
     ) {
-        // Base64로 인코딩된 비밀키 문자열을 SecretKey 객체로 변환합니다.
-        // HMAC-SHA 알고리즘에 사용할 수 있는 충분한 길이(256비트 이상)여야 합니다.
-        this.secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
+        // 비밀키 문자열 → SecretKey 변환
+        // Base64 인코딩 문자열이면 디코딩, 아니면 UTF-8 바이트 그대로 사용합니다.
+        // HMAC-SHA256은 최소 256비트(32바이트) 이상이어야 합니다.
+        this.secretKey = Keys.hmacShaKeyFor(decodeSecret(secret));
         this.accessExpiration = accessExpiration;
         this.refreshExpiration = refreshExpiration;
         this.refreshExpirationExtended = refreshExpirationExtended;
@@ -147,6 +150,25 @@ public class JwtTokenProvider {
      */
     public long getAccessTokenExpirationSeconds() {
         return accessExpiration / 1000;
+    }
+
+    /**
+     * 비밀키 문자열을 바이트 배열로 변환합니다.
+     * Base64 인코딩 문자열이면 디코딩하고, 아니면 UTF-8 바이트를 그대로 사용합니다.
+     */
+    private byte[] decodeSecret(String secret) {
+        try {
+            // 표준 Base64 시도
+            return Base64.getDecoder().decode(secret);
+        } catch (IllegalArgumentException e1) {
+            try {
+                // Base64URL 시도 (- 와 _ 를 사용하는 URL-safe Base64)
+                return Base64.getUrlDecoder().decode(secret);
+            } catch (IllegalArgumentException e2) {
+                // Base64가 아닌 평문 문자열이면 UTF-8 바이트로 변환
+                return secret.getBytes(StandardCharsets.UTF_8);
+            }
+        }
     }
 
     /**

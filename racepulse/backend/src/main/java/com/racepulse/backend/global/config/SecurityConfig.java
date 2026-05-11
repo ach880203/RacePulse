@@ -66,7 +66,10 @@ public class SecurityConfig {
                                 "/api/v1/races",
                                 "/api/v1/races/**",
                                 "/api/v1/horses",
-                                "/api/v1/horses/**"
+                                "/api/v1/horses/**",
+                                // 대시보드 통계와 해설은 로그인 없이 공개 조회 가능
+                                "/api/v1/dashboard/**",
+                                "/api/v1/commentary/**"
                         ).permitAll()
 
                         // 나머지 모든 요청은 JWT 인증 필요

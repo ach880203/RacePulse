@@ -16,16 +16,19 @@ import IntroVideo, { INTRO_WATCHED_STORAGE_KEY } from './components/IntroVideo'
 import HomePage from './pages/HomePage'
 import RaceListPage from './pages/RaceListPage'
 
-// 이번 11번 프롬프트에서 구현한 상세 페이지들
-import RaceDetailPage   from './pages/race/RaceDetailPage'
-import RaceEntriesPage  from './pages/race/RaceEntriesPage'
-import HorseDetailPage  from './pages/horse/HorseDetailPage'
-import JockeyDetailPage from './pages/jockey/JockeyDetailPage'
+// 11번 프롬프트에서 구현한 상세 페이지들
+import RaceDetailPage    from './pages/race/RaceDetailPage'
+import RaceEntriesPage   from './pages/race/RaceEntriesPage'
+import HorseDetailPage   from './pages/horse/HorseDetailPage'
+import JockeyDetailPage  from './pages/jockey/JockeyDetailPage'
 import TrainerDetailPage from './pages/trainer/TrainerDetailPage'
+
+// 14번 프롬프트에서 구현한 대시보드 페이지들
+import DashboardPage       from './pages/DashboardPage'
+import WeeklyDashboardPage from './pages/WeeklyDashboardPage'
 
 // -----------------------------------------------------------------------------
 // 아직 구현 전인 페이지의 임시 컴포넌트
-// TODO: 각 프롬프트(12~14번)에서 실제 페이지로 교체 예정
 // -----------------------------------------------------------------------------
 const Placeholder = ({ name }: { name: string }) => (
   <div className="min-h-screen bg-brand-navy-950 px-8 py-12 font-body text-white">
@@ -85,9 +88,9 @@ function App() {
         <Route path="/racecourses"                    element={<Placeholder name="경마장 목록" />} />
         <Route path="/racecourses/:meetCode"          element={<Placeholder name="경마장 상세" />} />
 
-        {/* 대시보드 / 검색 — TODO: [Phase 3] 14번 프롬프트에서 구현 */}
-        <Route path="/dashboard"                      element={<Placeholder name="정확도 대시보드" />} />
-        <Route path="/dashboard/weekly"               element={<Placeholder name="주간 분석" />} />
+        {/* 대시보드 — 14번 프롬프트에서 실제 페이지로 교체 */}
+        <Route path="/dashboard"                      element={<DashboardPage />} />
+        <Route path="/dashboard/weekly"               element={<WeeklyDashboardPage />} />
         <Route path="/search"                         element={<Placeholder name="통합 검색" />} />
 
         {/* ----------------------------------------------------------------
