@@ -42,6 +42,13 @@ const tooltipStyle = {
   },
 }
 
+function formatTooltipPercent(value: number | string | readonly (number | string)[] | undefined) {
+  if (Array.isArray(value)) {
+    return `${value.join(', ')}%`
+  }
+  return `${value ?? '-'}%`
+}
+
 // 데모 예측 목록 (predictions API가 아직 없으므로 정적 데이터 사용)
 // TODO: [Phase 3] predictions API 연동 후 실제 데이터로 교체
 const DEMO_PREDICTIONS = [
@@ -142,7 +149,7 @@ function DashboardPage() {
                   />
                   <Tooltip
                     {...tooltipStyle}
-                    formatter={(v: number) => [`${v}%`]}
+                    formatter={(v) => [formatTooltipPercent(v)]}
                   />
                   <Legend
                     wrapperStyle={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.75rem' }}
@@ -205,7 +212,7 @@ function DashboardPage() {
                   />
                   <Tooltip
                     {...tooltipStyle}
-                    formatter={(v: number) => [`${v}%`]}
+                    formatter={(v) => [formatTooltipPercent(v)]}
                   />
                   <Legend
                     wrapperStyle={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.75rem' }}

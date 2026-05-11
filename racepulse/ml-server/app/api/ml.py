@@ -28,6 +28,7 @@ from app.services.feature_batch import FeatureBatchService
 from app.services.ml_dataset import MLDatasetService
 from app.services.ml_trainer import MLTrainerService
 from app.services.model_manager import ModelManagerService
+from app.services.monte_carlo import MonteCarloService
 from app.services.predictor import PredictorService
 
 logger = logging.getLogger(__name__)
@@ -372,6 +373,42 @@ async def activate_model(
         }
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.post("/simulate/{race_id}")
+async def run_monte_carlo_simulation(
+    race_id: int,
+    n_simulations: int = 10_000,
+    db: AsyncSession = Depends(get_db),
+):
+    """예측 확률을 여러 번 추첨해 각 말의 순위별 확률 분포를 계산합니다."""
+    service = MonteCarloService(db)
+    try:
+        result = await service.run_simulation(race_id, n_simulations)
+        return {
+            "success": True,
+            "data": result,
+            "message": "몬테카를로 시뮬레이션 완료",
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.get("/simulate/{race_id}/result")
+async def get_monte_carlo_simulation_result(
+    race_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """저장된 몬테카를로 시뮬레이션 결과를 조회합니다."""
+    service = MonteCarloService(db)
+    result = await service.get_simulation_result(race_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="저장된 시뮬레이션 결과가 없습니다.")
+    return {
+        "success": True,
+        "data": result,
+        "message": "몬테카를로 시뮬레이션 결과 조회 성공",
+    }
 
 
 @router.post("/features/recalculate")

@@ -47,6 +47,11 @@ body {
   font-family: var(--font-body);
 }
 
+html.light body {
+  background-color: white;
+  color: var(--color-brand-navy-950);
+}
+
 /* -----------------------------------------------------------------------
    인트로 영상 전체 레이아웃
    화면 전체를 덮는 고정 레이어로 만들어야 영상과 로딩 UI가 흔들리지 않습니다.
@@ -186,6 +191,54 @@ body {
 
   100% {
     transform: translateX(235%);
+  }
+}
+
+@keyframes horse-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes race-run {
+  0% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(13rem);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@keyframes result-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes loading-grow {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(220%);
   }
 }
 

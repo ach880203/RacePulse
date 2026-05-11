@@ -340,12 +340,14 @@ BE: 인증 + 유저 + 경주데이터 저장/조회 → Spring Boot
 - [x] **ARCH**: 데이터 품질 체크리스트 확인 완료 → ML 기반 직행 결정
 - [x] **ARCH**: DB 테이블 목록 확정 → ✅ 총 43개 / Phase별 분리 (Phase0 15개 / Phase1 12개 / Phase2 11개 / Phase3 5개)
 - [x] **ARCH**: DB 스키마 상세 작성 완료 → V1__phase0.sql (컬럼/인덱스/ENUM/트리거 포함)
-- [ ] **ARCH**: FastAPI APScheduler + Redis 수집 파이프라인 설계
+- [x] **ARCH**: FastAPI APScheduler + Redis 수집 파이프라인 설계 → ✅ 16개 스케줄 + Rate Limit + 체크포인트 + 결측값 추적 구현 완료
+- [ ] **창현님**: ml-server Dockerfile 직접 작성 (회의 후 직접 경험)
+- [ ] **ARCH**: 실제 마사회 API 호출 테스트 → 결측값 비율 + 2019년 구버전 포맷 확인 (Dockerfile 완료 후 진행)
 - [x] **BE**: Spring Boot API 엔드포인트 확정 → ✅ 39개 / /api/v1/ 버전 포함 (34→36 카카오 추가 → 38 알림설정 추가 → 39 refresh 추가)
 - [x] **BE**: 인증 보안 구조 확정 → ✅ JWT + Rotation + Family 감지 + BCrypt + Rate Limiting
 - [x] **BE**: 환경별 설정 분리 확정 → ✅ dev(HTTP) / prod(HTTPS) 프로파일
 - [x] **BE**: Spring Boot 프로젝트 세팅 + Security 설정 구현 완료
-- [ ] **BE**: 카카오 OAuth 2.0 연동 (로그인/회원가입)
+- [x] **BE**: 카카오 OAuth 2.0 연동 완료 → 07-kakao-oauth-prompt.md 기반 Codex 생성
 - [x] **창현님**: 카카오 개발자 센터 앱 등록 + REST API 키 발급 완료
 - [ ] **BE**: API 응답에 last_updated / data_status / next_update 필드 포함 설계
 - [x] **FE**: 페이지 구조 (라우팅) 초안 작성 완료 → 25개 라우트
@@ -362,6 +364,9 @@ BE: 인증 + 유저 + 경주데이터 저장/조회 → Spring Boot
 - [ ] **FE**: 인트로 영상 제작 (Veo 3.1 시네마틱 실사 스타일)
 - [x] **FE**: TypeScript 기반 라우팅 구조 확정 → ✅ 25개 라우트 (목록 확정, /intro는 별도 라우트 아닌 홈의 조건부 렌더링으로 처리)
 - [ ] **BE**: GPT-4o-mini 프롬프트 초안 작성 (금요일용 / 월요일용)
+- [ ] **BE**: ErrorCode.java + BusinessException.java + GlobalExceptionHandler.java 구현 (API 명세서 작성 선행 조건)
+- [x] **팀 전체**: API 공통 응답 포맷 확정 → ✅ ApiResponse<T> (success/data/message) + PageResponse<T>
+- [ ] **ARCH**: 마사회 API 실데이터 테스트 결과 공유 (질 점수 / 결측값 비율 / 구버전 포맷 이슈)
 - [ ] **ARCH**: Monte Carlo 시뮬레이션 Phase 2 설계 문서 작성
 - [x] **PM**: Phase 0 일정 확정 → ✅ 7일 일정
 - [x] **창현님**: 카카오 개발자 센터 앱 등록 완료 ✅
@@ -386,7 +391,7 @@ BE: 인증 + 유저 + 경주데이터 저장/조회 → Spring Boot
 - [x] **BE**: Flyway 베이스라인 설정 완료
 - [x] **BE**: 카카오 OAuth 연동 완료 → 07-kakao-oauth-prompt.md 기반 Codex 생성
 - [x] **BE**: Web Push 알림 로직 + VAPID 키 설정 완료 → 09-web-push-vapid-prompt.md 기반 Codex 생성
-- [ ] **FE**: FE-BE API 연동 → 10-fe-api-connect-prompt.md (에러 발생, 재시도 필요)
+- [x] **FE**: FE-BE API 연동 완료 → 10-fe-api-connect-prompt.md 기반 Codex 생성
 - [x] **BE**: 기본 API 엔드포인트 완성 → 02-be-basic-api-prompt.md 기반 Codex 생성 (/api/v1/racecourses, /api/v1/races, /api/v1/horses)
 - [x] **FE**: React+TypeScript 프로젝트 생성 완료 (React 18 / Vite / TypeScript)
 - [x] **FE**: Tailwind CSS v4 설정 완료 (brand-navy, brand-gold 토큰 포함)
@@ -396,6 +401,20 @@ BE: 인증 + 유저 + 경주데이터 저장/조회 → Spring Boot
 - [x] **FE**: 인트로 영상 연동 완료 → 01-intro-video-prompt.md 기반 Codex 생성
 - [ ] **DESIGN**: Figma 컬러 팔레트 + 디자인 토큰 초안 (Day 5)
 - [x] **팀 전체**: 2차 회의 확정 → ✅ DB 스키마 25개 / 폰트(Playfair Display+Inter) / Tailwind brand 토큰 / 프로젝트 세팅 프롬프트 4개
+- [x] **FE**: 상세 페이지 구현 완료 → 11-detail-pages-prompt.md 기반 Codex 생성
+- [x] **ML**: ML 피처 엔지니어링 완료 → 12-ml-feature-engineering-prompt.md 기반 Codex 생성 (23개 피처)
+- [x] **ML**: AI 해설 서비스 완료 → 13-ai-commentary-prompt.md 기반 Codex 생성
+- [x] **FE**: 대시보드 페이지 완료 → 14-dashboard-prompt.md 기반 Codex 생성
+- [x] **ML**: ML 모델 학습 서비스 완료 → 15-ml-model-training-prompt.md 기반 Codex 생성 (XGBoost/LightGBM)
+- [x] **FE**: 예측 결과 페이지 완료 → 16-prediction-page-prompt.md 기반 Codex 생성
+- [x] **FE**: 동적 UI 16종 구현 완료 → 17-dynamic-ui-prompt.md 기반 Codex 생성
+- [x] **ML**: Monte Carlo 시뮬레이션 완료 → 18-monte-carlo-prompt.md 기반 Codex 생성 (10,000회)
+- [x] **FE**: 검색 페이지 완료 → 19-search-page-prompt.md 기반 Codex 생성
+- [x] **BE/FE**: 마이페이지 완료 → 20-mypage-prompt.md 기반 Codex 생성 (즐겨찾기/알림/설정)
+- [x] **BE**: PredictionController + PredictionService 구현 완료
+- [x] **BE**: UserController + UserPageService 구현 완료 (즐겨찾기/설정/알림)
+- [x] **BE**: V5__create_user_profile_tables.sql 생성 완료
+- [x] **ML**: monte_carlo.py 구현 완료
 
 ---
 
@@ -778,16 +797,16 @@ userId / role / tier / exp
 
 | 우선순위 | 안건 | 담당 |
 |----------|------|------|
-| 🔴 | 노션 담당자 온보딩 (역할 설명 + 노션 워크스페이스 구조 설계) | NOTION + 팀 전체 |
-| 🔴 | 마사회 API 실제 데이터 수집 현황 점검 (결측값/포맷 체크) | ARCH |
-| 🔴 | ML 모델 정확도 결과 공유 → Phase 2 진행 여부 결정 (60%/70% 기준) | ARCH |
-| 🔴 | GitHub Repository 브랜치 전략 실제 운영 시작 (develop/feature/* 적용) | GIT |
-| 🟡 | Figma 컬러 팔레트 + 와이어프레임 초안 공유 | DESIGN |
-| 🟡 | 동적 UI 16종 우선순위 분류 (Phase 2 필수 vs 나중) | FE |
-| 🟡 | 인트로 영상 최종 확정 (영상2.mp4 확정 or Veo 3.1 재시도) | FE |
-| 🟡 | AWS 배포 환경 사전 논의 (EC2/RDS 구조, 도메인, SSL) | ARCH |
-| 🟢 | 코드 리뷰 프로세스 + PR 기준 확정 | GIT + 팀 |
-| 🟢 | Freemium / 포트원 결제 도입 시점 논의 | PM |
+| 🔴 | 노션 담당자 온보딩 (역할 설명 + 노션 워크스페이스 구조 설계) | NOTION + 팀 전체 | ✅ 완료 |
+| 🔴 | 마사회 API 실제 데이터 수집 현황 점검 (결측값/포맷 체크) | ARCH | ✅ 완료 (실테스트는 프롬프트 20번 후) |
+| 🔴 | ML 모델 정확도 결과 공유 → Phase 2 진행 여부 결정 (60%/70% 기준) | ARCH | ⏸️ 저녁 후 재개 |
+| 🔴 | GitHub Repository 브랜치 전략 실제 운영 시작 (develop/feature/* 적용) | GIT | ✅ 완료 |
+| 🟡 | Figma 컬러 팔레트 + 와이어프레임 초안 공유 | DESIGN | ⏸️ 대기 |
+| 🟡 | 동적 UI 16종 우선순위 분류 (Phase 2 필수 vs 나중) | FE | ⏸️ 대기 |
+| 🟡 | 인트로 영상 최종 확정 (영상2.mp4 확정 or Veo 3.1 재시도) | FE | ⏸️ 대기 |
+| 🟡 | AWS 배포 환경 사전 논의 (EC2/RDS 구조, 도메인, SSL) | ARCH | ⏸️ 대기 |
+| 🟢 | 코드 리뷰 프로세스 + PR 기준 확정 | GIT + 팀 | ⏸️ 대기 |
+| 🟢 | Freemium / 포트원 결제 도입 시점 논의 | PM | ⏸️ 대기 |
 
 ---
 
@@ -935,6 +954,101 @@ userId / role / tier / exp
 
 ---
 
+---
+
+### [날짜: 2026-05-11] 3차 회의
+- **참석**: BE, FE, ARCH, PM, DESIGN, GIT, NOTION, WR, 창현님
+
+#### ✅ 안건 0: NOTION 온보딩 + 노션 자동 동기화 루틴 설정
+
+- 노션 워크스페이스 확정: https://www.notion.so/Racepulse-35de61ba917a80bfa329dc8acb7466ad
+- NOTION 첫 작업: API 명세서 우선 진행
+- 노션 자동 동기화 루틴 생성 완료 (매일 오전 2:00 KST / `trig_01GazhAkKvfekaPcVEUw22qF`)
+  - `horse_racing_team.md` 기반 자동 정리
+  - 대상: 회의록 / API 명세서 / DB 스키마 / 스프린트 대시보드
+- 노션 페이지 구조 확정:
+  ```
+  RacePulse/
+  ├── 📋 회의록/
+  ├── 🔌 API 명세서/
+  ├── 🗄️ DB 스키마/
+  ├── 🎨 디자인 시스템/
+  ├── 🧩 컴포넌트 라이브러리/
+  ├── 🐛 버그/이슈 트래킹/
+  ├── 📊 스프린트 대시보드/
+  ├── 🚀 배포 이력/
+  └── 📁 포트폴리오/
+  ```
+
+#### ✅ API 공통 응답 포맷 + 에러코드 체계 확정
+
+**공통 응답 포맷** (`ApiResponse<T>` — 이미 구현됨)
+```json
+{ "success": true, "data": { ... }, "message": "..." }
+```
+**페이징 응답** (`PageResponse<T>` — 이미 구현됨)
+```json
+{ "content": [...], "page": 0, "size": 20, "totalElements": 100, "totalPages": 5, "last": false }
+```
+
+**에러코드 목록 확정**
+```
+// 인증
+TOKEN_EXPIRED, TOKEN_INVALID, LOGIN_FAILED, ACCOUNT_LOCKED
+
+// 경주/말
+RACE_NOT_FOUND, HORSE_NOT_FOUND, JOCKEY_NOT_FOUND
+
+// 유저
+USER_NOT_FOUND, DUPLICATE_EMAIL, UNAUTHORIZED
+
+// 데이터
+DATA_NOT_READY, COLLECTION_IN_PROGRESS
+```
+
+**BE 구현 필요 파일**
+- `ErrorCode.java` — 에러코드 enum
+- `BusinessException.java` — 커스텀 예외 베이스 클래스
+- `GlobalExceptionHandler.java` — `@RestControllerAdvice` 전역 예외처리
+
+**data_status ENUM 확정**: `READY / UPDATING / COLLECTED / JOCKEY_CHANGED` → NOTION 명세서 반영
+
+#### ✅ 안건 3: ML 모델 정확도 → Phase 2 진행 여부
+
+- 프롬프트 11~20 모두 완료 확인 (ML 피처 23개 / XGBoost+LightGBM / Monte Carlo 10,000회)
+- ml-server Dockerfile 미생성 → Docker 기동 불가 → 실제 학습/정확도 측정 불가
+- **결정**: 창현님이 회의 후 Dockerfile 직접 작성 → Docker 기동 → 실데이터 수집 → 모델 학습 순서로 진행
+- Phase 2 진행 기준 유지: Top-3 정확도 60% 미만 → 피처 재검토 / 70% 이상 → Phase 2 진행
+
+#### ✅ 안건 4: GitHub 브랜치 전략 실제 운영 시작
+
+- **현황**: main 브랜치만 존재, develop/feature/* 없음
+- **솔로 개발 맞춤 조정 확정**:
+  - 브랜치 구조: `main / develop / feature/* / hotfix/*` 유지
+  - main 직접 push: **금지** (포트폴리오용 PR 이력 유지)
+  - develop 직접 push: **허용** (혼자 작업)
+  - PR 승인자: **생략** (셀프 머지)
+  - 머지 방식: **Squash merge** (main 이력 깔끔하게)
+- **GIT 액션**: develop 브랜치 생성 + GitHub Branch Protection Rule 설정 + PR 템플릿 생성
+
+---
+
+#### ✅ 안건 2: 마사회 API 실데이터 수집 현황 점검
+
+**파이프라인 구현 상태 확인**
+- 마사회 API 3개 엔드포인트 구현 완료 (경주계획표 / 출전표 / 경주결과)
+- APScheduler 16개 스케줄 등록 완료
+- Redis Rate Limit (일 3,000콜 / 2,800 자동 중단) + 체크포인트 복구 구현 완료
+- 결측값 품질 점수 기준 확정: GOOD(85↑) / WARNING(60~84) / CRITICAL(60↓)
+
+**미확인 항목 (실API 테스트 필요)**
+- 결측값 실제 비율
+- 2019년 구버전 데이터 포맷 일관성
+
+**테스트 방법**: Docker 실행 → 실제 API 호출 → `GET /collection/status` 조회
+
+---
+
 #### ✅ 팀 구성 변경 (창현님 확정)
 
 - **Git 관리자 (GIT) 신규 추가** — 브랜치 전략, PR 관리, CI/CD, 버전 관리, Git 가이드 문서화 담당
@@ -1043,3 +1157,43 @@ userId / role / tier / exp
 - [x] ML 피처로 활용 가능한 컬럼 수 — 20개 이상 (기준 충족)
 - [ ] 결측값 비율 — 실제 API 응답 호출 후 확인 필요
 - [ ] 데이터 포맷 일관성 — 2019년 구버전 스키마 확인 필요
+
+---
+
+## 추가 안건: 17~20번 구현 반영 및 문서 최신화
+
+- **17~20번 프롬프트 구현 상태 반영**
+  - 동적 UI 16종 구현 및 `/demo` 확인 페이지 추가
+  - Monte Carlo 시뮬레이션 API 추가
+  - 통합 검색 페이지 `/search` 및 검색 API 추가
+  - 마이페이지 `/profile`, 즐겨찾기 `/favorites`, 설정 `/settings` 흐름 추가
+
+- **API 명세 최신화**
+  - `GET /api/v1/search`
+  - `GET /api/v1/predictions/{raceId}/simulation`
+  - `GET /api/v1/user/favorites`
+  - `POST /api/v1/user/favorites`
+  - `DELETE /api/v1/user/favorites/{id}`
+  - `GET /api/v1/user/preferences`
+  - `PATCH /api/v1/user/preferences`
+  - `GET /api/v1/user/notifications`, `PATCH /api/v1/user/notifications/{type}`는 기존 `PushController`가 담당하므로 중복 구현 금지
+
+- **DB 스키마 문서 갱신**
+  - 실제 구현 기준으로 `user_favorites`, `user_preferences` 테이블 반영
+  - `V5__create_user_profile_tables.sql` 기준 컬럼/인덱스/유니크 제약 정리
+  - 문서상 `favorites`, `user_views` 등 미구현 테이블은 Phase 또는 보류 상태를 명확히 표시
+
+- **Monte Carlo 운영 기준 확정**
+  - 기본 반복 횟수 10,000회 유지 여부
+  - 결과 저장 테이블 `monte_carlo_simulations` 운영 방식
+  - 예측 결과가 없을 때 시뮬레이션 생성 실패 처리 방식
+  - 재계산 주기와 캐시 만료 기준 확정
+
+- **프론트 번들 크기 개선 논의**
+  - 현재 빌드는 통과하지만 Vite에서 500KB 초과 청크 경고 발생
+  - `/demo`, 차트, 마이페이지 등 lazy loading 분리 시점 결정
+
+- **문서 인코딩/Notion 동기화 품질 점검**
+  - 터미널 출력에서 한글 깨짐이 확인되므로 실제 파일 UTF-8 저장 상태 확인
+  - Notion 자동 동기화 시 한글이 깨지지 않는지 점검
+  - 회의록 원본과 Notion 반영본의 인코딩/표 형식 유지 여부 확인

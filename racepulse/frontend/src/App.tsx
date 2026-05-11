@@ -19,6 +19,7 @@ import RaceListPage from './pages/RaceListPage'
 // 11번 프롬프트에서 구현한 상세 페이지들
 import RaceDetailPage    from './pages/race/RaceDetailPage'
 import RaceEntriesPage   from './pages/race/RaceEntriesPage'
+import RacePredictionPage from './pages/race/RacePredictionPage'
 import HorseDetailPage   from './pages/horse/HorseDetailPage'
 import JockeyDetailPage  from './pages/jockey/JockeyDetailPage'
 import TrainerDetailPage from './pages/trainer/TrainerDetailPage'
@@ -26,6 +27,12 @@ import TrainerDetailPage from './pages/trainer/TrainerDetailPage'
 // 14번 프롬프트에서 구현한 대시보드 페이지들
 import DashboardPage       from './pages/DashboardPage'
 import WeeklyDashboardPage from './pages/WeeklyDashboardPage'
+import PrivateRoute from './components/PrivateRoute'
+import ComponentDemoPage from './pages/ComponentDemoPage'
+import SearchPage from './pages/SearchPage'
+import ProfilePage from './pages/user/ProfilePage'
+import FavoritesPage from './pages/user/FavoritesPage'
+import SettingsPage from './pages/user/SettingsPage'
 
 // -----------------------------------------------------------------------------
 // 아직 구현 전인 페이지의 임시 컴포넌트
@@ -72,7 +79,7 @@ function App() {
         <Route path="/races/:raceId"                  element={<RaceDetailPage />} />
         <Route path="/races/:raceId/entries"          element={<RaceEntriesPage />} />
         <Route path="/races/:raceId/result"           element={<Placeholder name="경주 결과" />} />
-        <Route path="/races/:raceId/prediction"       element={<Placeholder name="예측 결과" />} />
+        <Route path="/races/:raceId/prediction"       element={<RacePredictionPage />} />
         <Route path="/races/:raceId/commentary"       element={<Placeholder name="AI 해설" />} />
 
         {/* 경주마 관련 — 11번에서 실제 페이지로 교체 */}
@@ -91,7 +98,8 @@ function App() {
         {/* 대시보드 — 14번 프롬프트에서 실제 페이지로 교체 */}
         <Route path="/dashboard"                      element={<DashboardPage />} />
         <Route path="/dashboard/weekly"               element={<WeeklyDashboardPage />} />
-        <Route path="/search"                         element={<Placeholder name="통합 검색" />} />
+        <Route path="/search"                         element={<SearchPage />} />
+        <Route path="/demo"                           element={<ComponentDemoPage />} />
 
         {/* ----------------------------------------------------------------
             인증 페이지 — TODO: [Phase 2] 카카오 로그인 연동
@@ -101,9 +109,11 @@ function App() {
         <Route path="/auth/kakao/callback"            element={<Placeholder name="카카오 OAuth 콜백" />} />
 
         {/* 로그인 필요 페이지 */}
-        <Route path="/profile"                        element={<Placeholder name="내 프로필" />} />
-        <Route path="/favorites"                      element={<Placeholder name="즐겨찾기" />} />
-        <Route path="/settings"                       element={<Placeholder name="알림 설정" />} />
+        <Route element={<PrivateRoute />}>
+          <Route path="/profile"                      element={<ProfilePage />} />
+          <Route path="/favorites"                    element={<FavoritesPage />} />
+          <Route path="/settings"                     element={<SettingsPage />} />
+        </Route>
 
         {/* 관리자 페이지 */}
         <Route path="/admin"                          element={<Placeholder name="관리자 대시보드" />} />

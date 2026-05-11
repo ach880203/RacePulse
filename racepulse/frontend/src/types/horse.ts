@@ -24,6 +24,7 @@ export interface Horse {
   isActive: boolean
   thumbnailUrl: string | null
   photoUrl: string | null
+}
 
 /** 경주마 목록 조회 파라미터 */
 export interface HorseListParams {

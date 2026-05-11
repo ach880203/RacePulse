@@ -25,6 +25,13 @@ interface Props {
   height?: number
 }
 
+function formatTooltipValue(value: number | string | readonly (number | string)[] | undefined) {
+  if (Array.isArray(value)) {
+    return value.join(', ')
+  }
+  return value ?? '-'
+}
+
 function SparklineChart({ data, height = 64 }: Props) {
   if (data.length === 0) {
     return (
@@ -53,7 +60,7 @@ function SparklineChart({ data, height = 64 }: Props) {
             color: '#fff',
             fontSize: '0.75rem',
           }}
-          formatter={(value: number) => [`${value}위`, '착순']}
+          formatter={(value) => [`${formatTooltipValue(value)}위`, '착순']}
           labelFormatter={() => ''}
         />
         {/* Line = 실제 꺾은선을 그립니다. dataKey="order"는 데이터에서 읽을 필드 이름입니다. */}
