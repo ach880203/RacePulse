@@ -1,36 +1,50 @@
 # =============================================================================
 # test.yml — RacePulse 자동 테스트 CI 파이프라인
 # =============================================================================
-# 언제 실행되는가?
-#   - develop 브랜치에 push 할 때
-#   - main 브랜치로 Pull Request 를 열거나 업데이트할 때
-#
-# 무엇을 실행하는가?
-#   - backend  : ./gradlew test  (JUnit 5)
-#   - ml       : pytest          (pytest-asyncio)
-#   - frontend : npm run test    (Vitest)
-#
-# 각 Job은 독립적으로 병렬 실행됩니다.
-# 세 Job 중 하나라도 실패하면 PR 머지가 차단됩니다.
-# =============================================================================
-
 name: Test
 
 on:
   push:
     branches:
-      - develop       # develop 브랜치 직접 push 시 실행
+      - develop
   pull_request:
     branches:
-      - main          # main 으로 PR 열릴 때 실행 (develop → main 머지 전 검증)
+      - main
 
+jobs:
 # =============================================================================
 # Job 1: Spring Boot 백엔드 테스트
 # =============================================================================
-jobs:
   backend:
     name: Backend (JUnit 5)
     runs-on: ubuntu-latest
+
+    # BackendApplicationTests(@SpringBootTest)가 실제 DB/Redis 연결을 시도합니다.
+    # services 블록으로 CI 안에 Docker 컨테이너를 띄웁니다.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: racepulse
+          POSTGRES_USER: racepulse
+          POSTGRES_PASSWORD: racepulse_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: 코드 체크아웃
@@ -41,14 +55,19 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          # Gradle 의존성 캐시 — 두 번째 실행부터 빠릅니다
           cache: gradle
 
       - name: 테스트 실행
         working-directory: racepulse/backend
-        # 테스트에 필요한 환경 변수를 GitHub Secrets 또는 더미값으로 제공합니다.
-        # CI 환경에서는 실제 외부 API를 호출하지 않으므로 더미값으로 충분합니다.
         env:
+          # Spring Boot 환경변수는 SPRING_DATASOURCE_URL 형식으로 자동 주입됩니다.
+          # application-dev.yaml 의 spring.datasource.url 을 덮어씁니다.
+          SPRING_PROFILES_ACTIVE: dev
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/racepulse
+          SPRING_DATASOURCE_USERNAME: racepulse
+          SPRING_DATASOURCE_PASSWORD: racepulse_dev
+          SPRING_DATA_REDIS_HOST: localhost
+          SPRING_DATA_REDIS_PORT: 6379
           JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-test-secret-key-at-least-32-chars-long!!' }}
           KAKAO_CLIENT_ID: ${{ secrets.KAKAO_CLIENT_ID || 'ci-kakao-client-id' }}
           KAKAO_CLIENT_SECRET: ${{ secrets.KAKAO_CLIENT_SECRET || 'ci-kakao-client-secret' }}
@@ -56,8 +75,7 @@ jobs:
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY || 'GYzBKO--WpjZ3OQy_J2vkMbv_Ktgtt_R7f2v9536pWs' }}
         run: ./gradlew test --no-daemon
 
-      - name: 테스트 결과 리포트 업로드
-        # 테스트 실패 시에도 결과 파일을 업로드합니다 (if: always())
+      - name: 테스트 결과 업로드
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -66,7 +84,7 @@ jobs:
           retention-days: 7
 
 # =============================================================================
-# Job 2: ML 서버 테스트 (Python)
+# Job 2: ML 서버 테스트
 # =============================================================================
   ml:
     name: ML Server (pytest)
@@ -80,7 +98,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          # pip 캐시 — 두 번째 실행부터 의존성 설치가 빠릅니다
           cache: pip
           cache-dependency-path: racepulse/ml-server/requirements.txt
 
@@ -90,15 +107,18 @@ jobs:
 
       - name: 테스트 실행
         working-directory: racepulse/ml-server
-        # CI 환경에서는 DB/Redis 없이 Mock 기반으로 실행됩니다
         env:
+          # SQLAlchemy 모델 import 시 DATABASE_URL이 필요합니다.
+          # 실제 연결은 하지 않고(Mock 사용) import만 성공하면 됩니다.
           DATABASE_URL: postgresql+asyncpg://ci:ci@localhost/ci
           REDIS_URL: redis://localhost:6379
           OPENAI_API_KEY: ci-test-key
+          # app 패키지를 Python이 찾을 수 있도록 ml-server 경로를 추가합니다.
+          PYTHONPATH: .
         run: pytest tests/ -v --tb=short
 
 # =============================================================================
-# Job 3: 프론트엔드 테스트 (Vitest)
+# Job 3: 프론트엔드 테스트
 # =============================================================================
   frontend:
     name: Frontend (Vitest)
@@ -112,7 +132,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          # node_modules 캐시
           cache: npm
           cache-dependency-path: racepulse/frontend/package-lock.json
 
@@ -126,5 +145,4 @@ jobs:
 
       - name: 타입 체크
         working-directory: racepulse/frontend
-        # 테스트 통과해도 타입 에러가 있으면 실패로 처리합니다
         run: npx tsc --noEmit

@@ -75,11 +75,12 @@ export default defineConfig({
   },
   // Vitest 설정 — 테스트 전용 옵션입니다. 빌드/개발 서버에는 영향 없음.
   test: {
-    // jsdom = 브라우저 없이 DOM API를 시뮬레이션합니다. React 컴포넌트 렌더링에 필요합니다.
     environment: 'jsdom',
-    // setupFiles = 모든 테스트 파일 실행 전에 먼저 실행할 설정 파일입니다.
     setupFiles: ['./src/test/setup.ts'],
-    // globals = describe/it/expect 등을 import 없이 쓸 수 있게 합니다.
     globals: true,
+    // Tailwind v4(@tailwindcss/vite)는 jsdom 환경과 충돌합니다.
+    // CSS 처리 플러그인을 테스트에서 제외합니다.
+    // 컴포넌트 테스트는 CSS 렌더링이 아닌 DOM 구조만 검증하므로 문제없습니다.
+    css: false,
   },
 })
