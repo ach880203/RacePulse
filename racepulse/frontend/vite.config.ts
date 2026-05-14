@@ -6,7 +6,7 @@
 // =============================================================================
 
 // defineConfig = Vite 설정에 타입 힌트를 붙여 오타를 줄여주는 도우미 함수입니다.
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 // react = Vite가 React의 JSX/TSX 파일을 이해하도록 도와주는 공식 플러그인입니다.
 import react from '@vitejs/plugin-react'
 // tailwindcss = Tailwind CSS 유틸리티 클래스를 빌드 과정에 연결하는 플러그인입니다.
@@ -71,6 +71,16 @@ export default defineConfig({
     }),
   ],
   server: {
-    port: 3000,     // 개발 서버 포트 (http://localhost:3000)
+    port: 3000,
+  },
+  // Vitest 설정 — 테스트 전용 옵션입니다. 빌드/개발 서버에는 영향 없음.
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    globals: true,
+    // Tailwind v4(@tailwindcss/vite)는 jsdom 환경과 충돌합니다.
+    // CSS 처리 플러그인을 테스트에서 제외합니다.
+    // 컴포넌트 테스트는 CSS 렌더링이 아닌 DOM 구조만 검증하므로 문제없습니다.
+    css: false,
   },
 })
