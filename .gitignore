@@ -14,7 +14,7 @@
 *.tar.gz
 
 # Claude 내부 파일
-.claude/worktrees/
+.claude/
 
 # IDE
 .vscode/
