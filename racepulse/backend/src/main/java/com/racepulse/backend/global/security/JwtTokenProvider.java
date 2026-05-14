@@ -132,14 +132,17 @@ public class JwtTokenProvider {
      * @return true = 유효, false = 무효(만료/위변조/형식오류)
      */
     public boolean validateToken(String token) {
+        if (token == null || token.isBlank()) {
+            return false;
+        }
         try {
             parseClaims(token);
             return true;
         } catch (ExpiredJwtException e) {
             // 만료된 토큰: 클라이언트가 Refresh Token으로 재발급 요청해야 합니다.
             log.debug("JWT 만료: {}", e.getMessage());
-        } catch (JwtException e) {
-            // 위변조되거나 형식이 잘못된 토큰
+        } catch (JwtException | IllegalArgumentException e) {
+            // 위변조되거나 형식이 잘못된 토큰, 또는 빈 문자열 등 잘못된 입력
             log.warn("JWT 검증 실패: {}", e.getMessage());
         }
         return false;
