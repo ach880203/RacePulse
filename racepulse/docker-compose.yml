@@ -109,11 +109,9 @@ services:
   # FastAPI - Python ML 서버 (예측 모델, 데이터 수집)
   # ---------------------------------------------------------------------------
   ml-server:
-    # TODO: ml-server/ 디렉토리에 FastAPI 코드 생성 후 아래 주석 해제
-    # build:
-    #   context: ./ml-server
-    #   dockerfile: Dockerfile
-    image: python:3.11-slim  # 임시 이미지 (실제 앱 없이 컨테이너만 기동 확인용)
+    build:
+      context: ./ml-server
+      dockerfile: Dockerfile
     container_name: racepulse-ml-server
     restart: unless-stopped
     ports:
