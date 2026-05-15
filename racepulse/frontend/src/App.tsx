@@ -33,6 +33,9 @@ import SearchPage from './pages/SearchPage'
 import ProfilePage from './pages/user/ProfilePage'
 import FavoritesPage from './pages/user/FavoritesPage'
 import SettingsPage from './pages/user/SettingsPage'
+import UnauthorizedPage from './pages/error/UnauthorizedPage'
+import ServerErrorPage from './pages/error/ServerErrorPage'
+import NotFoundPage from './pages/error/NotFoundPage'
 
 // -----------------------------------------------------------------------------
 // 아직 구현 전인 페이지의 임시 컴포넌트
@@ -118,6 +121,12 @@ function App() {
         {/* 관리자 페이지 */}
         <Route path="/admin"                          element={<Placeholder name="관리자 대시보드" />} />
         <Route path="/admin/collection"               element={<Placeholder name="수집 현황" />} />
+        {/* 에러 페이지 */}
+        <Route path="/unauthorized"                   element={<UnauthorizedPage/>} />
+        <Route path="/forbidden"                      element={<UnauthorizedPage variant="forbidden" />} />
+        <Route path="/error"                          element={<ServerErrorPage />} />
+        {/* 존재하지 않는 모든 URL을 404로 */}
+        <Route path="*"                               element={<NotFoundPage />} />                
       </Routes>
     </BrowserRouter>
   )
