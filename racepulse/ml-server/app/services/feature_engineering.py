@@ -96,6 +96,15 @@ class FeatureEngineeringService:
             horse_id, meet_code, distance, track_cond
         )
 
+        # ─── 라이벌 직접 대결 피처 ────────────────────────────────────────
+        # 오늘 같은 경주에 출전한 말들과의 과거 직접 대결 승률을 계산합니다.
+        rival_features = await self._calculate_rival_features(
+            horse_id, race.id, meet_code, distance
+        )
+
+        # ─── 주행 스타일 피처 ─────────────────────────────────────────────
+        style_features = await self._calculate_style_features(horse_id)
+
         # 모든 피처를 하나의 딕셔너리로 합칩니다.
         # ** 연산자 = 딕셔너리를 펼쳐서 합치는 파이썬 문법입니다.
         features: dict[str, Any] = {
@@ -104,6 +113,8 @@ class FeatureEngineeringService:
             **trainer_features,
             **race_features,
             **context_features,
+            **rival_features,
+            **style_features,
         }
 
         logger.info(
@@ -437,6 +448,126 @@ class FeatureEngineeringService:
             .limit(100)
         )
         return list((await self.db.scalars(stmt)).all())
+
+
+    async def _calculate_rival_features(
+        self,
+        horse_id: int,
+        race_id: int,
+        meet_code: str,
+        distance: int,
+    ) -> dict[str, Any]:
+        """오늘 같은 경주에 출전한 말들과의 직접 대결 승률을 계산합니다.
+
+        rival_records 테이블에서 이 말과 오늘 경쟁마들의 과거 대결 이력을 조회해
+        평균 직접 대결 승률을 피처로 반환합니다.
+
+        rival_records 테이블이 비어있으면 None을 반환합니다.
+        (POST /ml/rivals/calculate 실행 전에는 데이터가 없습니다)
+        """
+        from sqlalchemy import text as sql_text
+
+        # 오늘 같은 경주에 출전한 다른 말들의 ID 목록
+        rival_ids_result = await self.db.execute(
+            sql_text("""
+                SELECT horse_id FROM race_entries
+                WHERE race_id = :race_id AND horse_id != :horse_id
+            """),
+            {"race_id": race_id, "horse_id": horse_id},
+        )
+        rival_ids = [row[0] for row in rival_ids_result.all()]
+
+        if not rival_ids:
+            return {"rival_h2h_win_rate": None, "rival_h2h_races": 0}
+
+        # 이 말과 오늘 경쟁마들의 직접 대결 이력 조회
+        # horse_id_1 < horse_id_2 제약 때문에 두 방향 모두 조회합니다.
+        h2h_result = await self.db.execute(
+            sql_text("""
+                SELECT
+                    horse_id_1, horse_id_2,
+                    horse1_wins, horse2_wins, total_races
+                FROM rival_records
+                WHERE meet_code = :meet_code
+                  AND ABS(distance - :distance) <= 200
+                  AND (
+                      (horse_id_1 = :horse_id AND horse_id_2 = ANY(:rivals))
+                      OR
+                      (horse_id_2 = :horse_id AND horse_id_1 = ANY(:rivals))
+                  )
+            """),
+            {
+                "horse_id":  horse_id,
+                "rivals":    rival_ids,
+                "meet_code": meet_code,
+                "distance":  distance,
+            },
+        )
+        rows = h2h_result.all()
+
+        if not rows:
+            return {"rival_h2h_win_rate": None, "rival_h2h_races": 0}
+
+        # 이 말의 직접 대결 승률 계산
+        total_wins = 0
+        total_h2h  = 0
+        for row in rows:
+            if row[0] == horse_id:   # 이 말이 horse_id_1
+                total_wins += row[2]
+            else:                    # 이 말이 horse_id_2
+                total_wins += row[3]
+            total_h2h += row[4]
+
+        win_rate = _safe_rate(total_wins, total_h2h)
+        return {
+            "rival_h2h_win_rate": win_rate,   # 오늘 경쟁마들과의 과거 직접 대결 승률
+            "rival_h2h_races":    total_h2h,  # 직접 대결 총 횟수 (데이터 신뢰도)
+        }
+
+    async def _calculate_style_features(self, horse_id: int) -> dict[str, Any]:
+        """말의 주행 스타일을 숫자로 인코딩하여 반환합니다.
+
+        horse_running_style 테이블에서 이 말의 스타일을 조회합니다.
+        POST /ml/running-style/calculate 실행 전에는 None을 반환합니다.
+
+        스타일 인코딩:
+          LEADER  → 0  (선행마)
+          STALKER → 1  (중간 추적마)
+          CLOSER  → 2  (추입마)
+          PRESSER → 3  (선두 압박마)
+        """
+        from sqlalchemy import text as sql_text
+
+        STYLE_ENCODE = {"LEADER": 0, "STALKER": 1, "CLOSER": 2, "PRESSER": 3}
+
+        row = (await self.db.execute(
+            sql_text("""
+                SELECT style, confidence_score, avg_inner_rank, avg_outer_rank
+                FROM horse_running_style
+                WHERE horse_id = :horse_id AND track_type = 'ALL'
+                LIMIT 1
+            """),
+            {"horse_id": horse_id},
+        )).mappings().first()
+
+        if not row:
+            return {
+                "running_style":        None,
+                "style_confidence":     None,
+                "inner_vs_outer_diff":  None,
+            }
+
+        inner = float(row["avg_inner_rank"]) if row["avg_inner_rank"] else None
+        outer = float(row["avg_outer_rank"]) if row["avg_outer_rank"] else None
+
+        # inner_vs_outer_diff: 양수 = 내측 유리 (선행), 음수 = 외측 유리 (추입)
+        diff = (outer - inner) if (inner is not None and outer is not None) else None
+
+        return {
+            "running_style":       STYLE_ENCODE.get(row["style"], 1),
+            "style_confidence":    float(row["confidence_score"]) if row["confidence_score"] else None,
+            "inner_vs_outer_diff": round(diff, 2) if diff is not None else None,
+        }
 
 
 # =============================================================================

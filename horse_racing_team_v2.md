@@ -152,18 +152,73 @@
 - [x] **ML**: Monte Carlo 고도화 (QMC/Sobol + Antithetic + Adaptive CI + 게이트편향 + Cholesky 상관행렬 + 날씨불확실성 + 스마트머니 + 신뢰도점수) ✅ 2026-05-18
 - [x] **BE**: API 응답 `lastUpdated / dataStatus / nextUpdate` 필드 추가 (RaceResponse.java) ✅ 2026-05-18
 
-### 🟡 Phase 2 진행 중
-- [ ] **ARCH**: 마사회 API 실데이터 테스트 (Dockerfile 완료 후 / 결측값·구버전 포맷)
-- [ ] **ML**: 모델 정확도 측정 (실데이터 수집 후 / Top-3 기준 판단)
-- [ ] **FE**: Counterfactual 인터랙티브 UI (Web Worker 기반)
-- [ ] **FE**: 동적 UI Phase 2 10종 구현
-- [ ] **FE**: 번들 최적화 14단계 (Brotli / WebM / ECharts / 폰트서브셋 / Lazy / WebWorker / 가상화 / SW캐싱 / CI모니터링 등)
+### ✅ Phase 2 완료
+- [x] ML: Monte Carlo 고도화 (QMC + Adaptive + 게이트편향 + 날씨 + 스마트머니 + 신뢰도) ✅ 2026-05-18
+- [x] BE: API 응답 lastUpdated / dataStatus / nextUpdate 필드 추가 ✅ 2026-05-18
+- [x] ARCH: 마사회 API 실데이터 테스트 (품질점수 97.6 GOOD / 전국 1년치 수집) ✅ 2026-05-18
+- [x] ML: XGBoost v1.0 학습 (Top-1 83% / Top-3 89%) ✅ 2026-05-18
+- [x] ML: LightGBM v1.0 학습 (Top-1 89% / Top-3 94%) ✅ 2026-05-18
+- [x] ML: XGBoost + LightGBM 앙상블 예측 구현 ✅ 2026-05-18
+- [x] ML: 라이벌 직접 대결 피처 (rival_records 396,937쌍 → 538,717쌍) ✅ 2026-05-18~19
+- [x] ML: 주행 스타일 피처 (horse_running_style 6,892마리 → 8,726마리) ✅ 2026-05-18~19
+- [x] ML: FEATURE_COLUMNS 23개 → 28개 확장 ✅ 2026-05-18
+- [x] ML: **XGBoost v2.0 학습 (Top-1 89.85% / Top-3 99.85%)** ✅ 2026-05-19 (야간 자동 실행)
+- [x] ML: **LightGBM v2.0 학습 (Top-1 94.18% / Top-3 99.4%)** ✅ 2026-05-19 (야간 자동 실행)
+- [x] FE: Counterfactual 인터랙티브 UI (Web Worker 기반) ✅ 2026-05-18
+- [x] FE: 동적 UI Phase 2 10종 (라이벌/스타일/MC 시각화) ✅ 2026-05-18
+- [x] FE: 번들 최적화 14단계 (Brotli/ECharts/Lazy/SW캐싱 등) ✅ 2026-05-18
+- [x] ARCH: 야간 자동화 파이프라인 구축 (Task Scheduler 03:00 수집 + 05:00 재학습) ✅ 2026-05-18
 
-### 🟢 낮음
-- [ ] **BE**: GPT-4o-mini 프롬프트 초안 (금요일용 / 월요일용)
+---
+
+## 🗂️ 전체 남은 작업 우선순위 (Phase 2 ~ Phase 4)
+
+### 🔴 P1 — 즉시 (ML 정확도 핵심 / 임팩트 큼 / 빠름)
+
+| # | 작업 | 담당 | 근거 |
+|---|------|------|------|
+| 1 | **2024년 데이터 추가 수집** (bulk_collect.py START_MONTH=2024-01) | ML/ARCH | 2년치 재학습 시 2·3위 정확도 개선 직결 |
+| 2 | **LightGBM 학습 + XGBoost 앙상블** (두 모델 평균 예측) | ML | POST /ml/train?model_type=lgbm → 앙상블 코드 추가 |
+| 3 | **라이벌 직접 대결 피처** (rival_records 테이블 — 4차 회의 확정) | ML | A vs B 직접 전적 → feature_engineering.py 추가 |
+| 4 | **주행 스타일 피처** (horse_running_style 테이블 — 4차 회의 확정) | ML | 선행/추입/중간 스타일 → feature_engineering.py 추가 |
+
+### 🟡 P2 — Phase 2 완성 (FE 핵심 / 4차 회의 확정)
+
+| # | 작업 | 담당 | 근거 |
+|---|------|------|------|
+| 5 | **Counterfactual 인터랙티브 UI** (Web Worker 필수 — 4차 회의 확정) | FE | Monte Carlo 고도화의 FE 연동 |
+| 6 | **동적 UI Phase 2 10종** (4차 회의: Phase 2 추가 10종) | FE | 경주 시뮬레이션 미니 애니메이션 등 |
+| 7 | **번들 최적화 14단계** (4차 회의 확정 — Brotli/WebM/ECharts/폰트서브셋/Lazy/WebWorker/가상화/SW캐싱/CI모니터링) | FE | 실운영 성능 기준 |
+
+### 🟠 P3 — Phase 2~3 경계 (BE/DESIGN)
+
+| # | 작업 | 담당 | 근거 |
+|---|------|------|------|
+| 8 | **GPT-4o-mini 프롬프트 초안** (금요일 사전 / 월요일 결과 — 1차 회의 확정) | BE | AI 해설 실제 생성에 필요 |
+| 9 | **Figma 컬러 팔레트 + 디자인 토큰 초안** (2차 회의 확정) | DESIGN | FE 동적 UI 구현 선행 조건 |
+| 10 | **개인정보보호법 준수 체계 설계** (약관/처리방침/동의 — Phase 2~3 안건) | BE | 실운영 전환 법적 요건 |
+| 11 | **점검 모드 페이지 + 월요일 배너 + 푸시 알림** (화요일 정기 점검일 대비) | FE | 배포 운영 기반 |
+
+### 🟢 P4 — Phase 3 (AI 해설 고도화 / Monte Carlo 심화)
+
+| # | 작업 | 담당 | 근거 |
+|---|------|------|------|
+| 12 | **Bayesian MC 업데이트** (Sequential Race Dynamics / Copula / 앙상블 — 4차 회의 확정) | ML | Monte Carlo Phase 3 심화 |
+| 13 | **AI 해설 고도화** (GPT 품질 검증 / 사행성 필터 강화) | ML/BE | 실운영 해설 품질 |
+| 14 | **동적 UI Phase 3 5종** (4차 회의 확정) | FE | 완성도 향상 |
+| 15 | **Freemium 수익화 모델 설계** (Phase 3~4 안건 — 4차 회의 이관) | PM | 실운영 전환 전 결정 |
+
+### ⚪ P5 — Phase 4 (배포 / 문서화)
+
+| # | 작업 | 담당 | 근거 |
+|---|------|------|------|
+| 16 | **AWS 배포** (EC2 3서버 + ALB + CloudFront — 4차 회의 확정) | ARCH | 화요일 02:00~06:00 정기 점검일 |
+| 17 | **부하 테스트** (동시 사용자 100명, p95 500ms 목표) | ARCH | 실운영 품질 기준 |
+| 18 | **README + 포트폴리오 문서화** | NOTION | Phase 4 산출물 |
+| 19 | **마사회 API 상업적 이용 신청** (80% 달성 확인 후 진행 — 4차 회의 리스크 수용) | PM | 실운영 전환 법적 요건 |
+
+### 🟢 낮음 (기존)
 - [ ] **DESIGN**: Figma 컬러 팔레트 + 디자인 토큰 초안 업로드
-- [ ] **BE**: 개인정보보호법 준수 체계 설계 (약관 / 처리방침 / 동의)
-- [ ] **FE**: 점검 모드 페이지 + 월요일 배너 + 푸시 알림
 
 ---
 
