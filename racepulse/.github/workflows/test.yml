@@ -1,0 +1,34 @@
+name: 테스트와 번들 크기 확인
+
+on:
+  pull_request:
+  push:
+    branches:
+      - develop
+
+jobs:
+  frontend-build:
+    name: 프론트엔드 빌드
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 소스 코드 내려받기
+        uses: actions/checkout@v4
+
+      - name: Node.js 준비
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: racepulse/frontend/package-lock.json
+
+      - name: 의존성 설치
+        run: |
+          cd racepulse/frontend
+          npm ci
+
+      - name: 번들 크기 체크
+        run: |
+          cd racepulse/frontend
+          npm run build
+          find dist/assets -name "*.js" -size +500k -exec echo "경고: {} 파일이 500KB 초과" \;
