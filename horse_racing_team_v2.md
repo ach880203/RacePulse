@@ -156,7 +156,18 @@
 - [x] ML: Monte Carlo 고도화 (QMC + Adaptive + 게이트편향 + 날씨 + 스마트머니 + 신뢰도) ✅ 2026-05-18
 - [x] BE: API 응답 lastUpdated / dataStatus / nextUpdate 필드 추가 ✅ 2026-05-18
 - [x] ARCH: 마사회 API 실데이터 테스트 (품질점수 97.6 GOOD / 전국 1년치 수집) ✅ 2026-05-18
-- [x] ML: XGBoost 모델 학습 완료 (Top-1 83% / Top-3 89% — 실운영 기준 80% 초과) ✅ 2026-05-18
+- [x] ML: XGBoost v1.0 학습 (Top-1 83% / Top-3 89%) ✅ 2026-05-18
+- [x] ML: LightGBM v1.0 학습 (Top-1 89% / Top-3 94%) ✅ 2026-05-18
+- [x] ML: XGBoost + LightGBM 앙상블 예측 구현 ✅ 2026-05-18
+- [x] ML: 라이벌 직접 대결 피처 (rival_records 396,937쌍 → 538,717쌍) ✅ 2026-05-18~19
+- [x] ML: 주행 스타일 피처 (horse_running_style 6,892마리 → 8,726마리) ✅ 2026-05-18~19
+- [x] ML: FEATURE_COLUMNS 23개 → 28개 확장 ✅ 2026-05-18
+- [x] ML: **XGBoost v2.0 학습 (Top-1 89.85% / Top-3 99.85%)** ✅ 2026-05-19 (야간 자동 실행)
+- [x] ML: **LightGBM v2.0 학습 (Top-1 94.18% / Top-3 99.4%)** ✅ 2026-05-19 (야간 자동 실행)
+- [x] FE: Counterfactual 인터랙티브 UI (Web Worker 기반) ✅ 2026-05-18
+- [x] FE: 동적 UI Phase 2 10종 (라이벌/스타일/MC 시각화) ✅ 2026-05-18
+- [x] FE: 번들 최적화 14단계 (Brotli/ECharts/Lazy/SW캐싱 등) ✅ 2026-05-18
+- [x] ARCH: 야간 자동화 파이프라인 구축 (Task Scheduler 03:00 수집 + 05:00 재학습) ✅ 2026-05-18
 
 ---
 
