@@ -141,9 +141,21 @@ async def update_running_styles(client: httpx.AsyncClient) -> dict:
 async def verify_fe_build() -> dict:
     """프론트엔드 빌드가 정상인지 확인합니다."""
     log.info("[FE빌드] npm run build 시작")
+    # Task Scheduler 환경에서는 PATH가 제한되므로 npm 전체 경로를 지정합니다.
+    # npm.cmd = Windows에서 npm을 실행하는 배치 파일입니다.
+    npm_candidates = [
+        r"C:\Program Files\nodejs\npm.cmd",
+        r"C:\Program Files (x86)\nodejs\npm.cmd",
+        r"C:\Users\ach88\AppData\Roaming\npm\npm.cmd",
+    ]
+    npm_path = next((p for p in npm_candidates if Path(p).exists()), None)
+    if npm_path is None:
+        log.error("[FE빌드] npm을 찾을 수 없습니다.")
+        return {"success": False, "error": "npm not found"}
+
     try:
         proc = await asyncio.create_subprocess_exec(
-            "npm", "run", "build",
+            npm_path, "run", "build",
             cwd=str(FRONTEND),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
