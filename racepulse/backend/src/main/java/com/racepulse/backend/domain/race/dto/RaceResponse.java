@@ -37,6 +37,11 @@ public class RaceResponse {
     private final Integer distance;
     private final String status;
     private final LocalTime startTime;
+    // 코드 리뷰 #2: 상세 화면에 필요한 필드 추가
+    private final String trackType;       // 트랙 종류 (잔디/모래 등)
+    private final Long prizeMoney;        // 상금 (원)
+    private final String weather;         // 날씨
+    private final String raceClass;       // 경주 등급
     private final String lastUpdated;
     private final String dataStatus;
     private final String nextUpdate;
@@ -55,6 +60,10 @@ public class RaceResponse {
                 .distance(race.getDistance())
                 .status(race.getStatus().name())
                 .startTime(race.getStartTime())
+                .trackType(race.getTrackType())
+                .prizeMoney(race.getPrizeMoney())
+                .weather(race.getWeather())
+                .raceClass(race.getRaceClass())
                 .lastUpdated(resolveLastUpdated(race))
                 .dataStatus(dataStatus)
                 .nextUpdate(resolveNextUpdate(race, dataStatus))

@@ -67,8 +67,12 @@ public class DashboardService {
                 Long.class
         );
 
+        // 코드 리뷰 #3: NULLIF 로 인해 SQL이 NULL을 반환하면 Double(박싱 타입)은 null이 됩니다.
+        // null을 primitive double에 대입하면 NullPointerException이 발생하므로
+        // Double(박싱 타입)으로 받아 null을 0.0으로 대체합니다.
+
         // Top-1 정확도: 예측 1위 = 실제 1위
-        double top1 = jdbcTemplate.queryForObject(
+        Double top1Raw = jdbcTemplate.queryForObject(
                 """
                 SELECT ROUND(100.0 * SUM(CASE WHEN p.predicted_rank = 1 AND r.rank = 1 THEN 1 ELSE 0 END)
                              / NULLIF(COUNT(*), 0), 1)
@@ -78,9 +82,10 @@ public class DashboardService {
                 """,
                 Double.class
         );
+        double top1 = top1Raw != null ? top1Raw : 0.0;
 
         // Top-3 정확도: 예측 1위가 실제 3위 이내
-        double top3 = jdbcTemplate.queryForObject(
+        Double top3Raw = jdbcTemplate.queryForObject(
                 """
                 SELECT ROUND(100.0 * SUM(CASE WHEN p.predicted_rank = 1 AND r.rank <= 3 THEN 1 ELSE 0 END)
                              / NULLIF(COUNT(*), 0), 1)
@@ -90,9 +95,10 @@ public class DashboardService {
                 """,
                 Double.class
         );
+        double top3 = top3Raw != null ? top3Raw : 0.0;
 
         // 최근 30일 Top-1 정확도
-        double last30 = jdbcTemplate.queryForObject(
+        Double last30Raw = jdbcTemplate.queryForObject(
                 """
                 SELECT ROUND(100.0 * SUM(CASE WHEN p.predicted_rank = 1 AND r.rank = 1 THEN 1 ELSE 0 END)
                              / NULLIF(COUNT(*), 0), 1)
@@ -103,6 +109,7 @@ public class DashboardService {
                 """,
                 Double.class
         );
+        double last30 = last30Raw != null ? last30Raw : 0.0;
 
         // 경마장별 정확도 (races 테이블과 JOIN)
         Map<String, AccuracyStatsDto.MeetAccuracy> byMeet = Map.of(
