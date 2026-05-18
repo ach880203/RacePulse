@@ -15,6 +15,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import IntroVideo, { INTRO_WATCHED_STORAGE_KEY } from './components/IntroVideo'
 import LoadingAnimation from './components/dynamic/LoadingAnimation'
 import PrivateRoute from './components/PrivateRoute'
+import MaintenancePage, { isMaintenanceTime } from './pages/MaintenancePage'
+import MaintenanceBanner, { isMaintenanceWarningTime } from './components/MaintenanceBanner'
 
 // Lazy Loading이란?
 //   처음부터 모든 페이지 코드를 내려받지 않고, 사용자가 해당 URL에 들어갈 때 필요한 페이지 파일만 받는 방식입니다.
@@ -72,8 +74,15 @@ function HomeRoute() {
 }
 
 function App() {
+  // 화요일 02:00~06:00 KST이면 점검 화면 전체 대체
+  if (isMaintenanceTime()) {
+    return <MaintenancePage />
+  }
+
   return (
     <BrowserRouter>
+      {/* 월요일 14:00 이후면 점검 사전 공지 배너를 최상단에 표시합니다 */}
+      {isMaintenanceWarningTime() && <MaintenanceBanner />}
       <Suspense fallback={<LoadingAnimation />}>
         <Routes>
           {/* ----------------------------------------------------------------
