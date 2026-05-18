@@ -3,14 +3,16 @@
 // 라우트: /races/:raceId/prediction
 // =============================================================================
 
-import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useState } from 'react' // React 화면 상태, 지연 로딩, 렌더 후 실행 로직을 사용합니다.
+import { Link, useParams } from 'react-router-dom' // 페이지 이동 링크와 URL의 raceId 값을 읽기 위해 사용합니다.
 
-import Layout from '../../components/layout/Layout'
-import DataStatusBadge from '../../components/DataStatusBadge'
-import { useRace } from '../../hooks/useRaces'
-import { usePrediction } from '../../hooks/usePrediction'
-import type { PredictionItem } from '../../types/prediction'
+import Layout from '../../components/layout/Layout' // 모든 페이지가 공유하는 헤더/본문 레이아웃입니다.
+import DataStatusBadge from '../../components/DataStatusBadge' // 데이터 수집 상태를 배지로 보여 주는 컴포넌트입니다.
+import LoadingAnimation from '../../components/dynamic/LoadingAnimation' // lazy 컴포넌트를 불러오는 동안 보여 줄 로딩 컴포넌트입니다.
+import SimulationAnimation from '../../components/dynamic/SimulationAnimation' // Monte Carlo 계산 흐름을 시각적으로 보여 주는 컴포넌트입니다.
+import { useRace } from '../../hooks/useRaces' // 경주 기본 정보를 서버에서 가져오는 React Query 훅입니다.
+import { usePrediction } from '../../hooks/usePrediction' // 예측 결과를 서버에서 가져오는 React Query 훅입니다.
+import type { PredictionItem } from '../../types/prediction' // 말별 예측 카드 데이터 타입입니다.
 
 const MEET_LABELS: Record<string, string> = {
   SC: '서울경마공원',
@@ -25,6 +27,20 @@ const CONDITION_GRADE_STYLES: Record<PredictionItem['conditionGrade'], string> =
   상: 'bg-lime-400 text-brand-navy-950',
   최상: 'bg-green-500 text-white',
 }
+
+type PredictionTab = '기본예측' | '가상시나리오' | '몬테카를로상세'
+
+// 탭 목록을 상수로 분리하면 화면에 탭을 추가하거나 이름을 바꿀 때 한 곳만 수정하면 됩니다.
+const PREDICTION_TABS: Array<{ id: PredictionTab; label: string }> = [
+  { id: '기본예측', label: '기본 예측' },
+  { id: '가상시나리오', label: '가상 시나리오' },
+  { id: '몬테카를로상세', label: '몬테카를로 상세' },
+]
+
+// Dynamic Import란?
+//   사용자가 실제로 "가상 시나리오" 탭을 누를 때 CounterfactualUI 코드를 내려받는 방식입니다.
+//   Monte Carlo UI와 Worker 연결 코드는 무겁기 때문에 기본 예측 탭 사용자에게는 늦게 보내는 편이 빠릅니다.
+const CounterfactualUI = lazy(() => import('../../components/dynamic/CounterfactualUI'))
 
 function PredictionCard({
   prediction,
@@ -122,6 +138,7 @@ function RacePredictionPage() {
   const { data: prediction, isLoading: predictionLoading, isError: predictionError } = usePrediction(id)
 
   const [animateBars, setAnimateBars] = useState(false)
+  const [activeTab, setActiveTab] = useState<PredictionTab>('기본예측')
 
   useEffect(() => {
     if (!prediction?.predictions?.length) {
@@ -218,61 +235,124 @@ function RacePredictionPage() {
           </div>
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.6fr)]">
-          <div className="space-y-4">
-            <div className="flex items-end justify-between gap-4">
-              <div>
-                <p className="text-sm tracking-[0.2em] text-brand-gold-400">PREDICTION BOARD</p>
-                <h2 className="mt-2 font-heading text-3xl text-white">예측 순위 목록</h2>
-              </div>
-              <p className="text-sm text-white/45">{sortedPredictions.length}마리 분석</p>
-            </div>
-
-            {sortedPredictions.map((item) => (
-              <PredictionCard
-                key={item.horseId}
-                prediction={item}
-                animateBars={animateBars}
-              />
+        <section className="space-y-5">
+          <div className="flex flex-wrap gap-2 rounded-[2rem] border border-white/10 bg-white/5 p-2">
+            {PREDICTION_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={[
+                  'rounded-full px-4 py-2 text-sm font-semibold transition',
+                  activeTab === tab.id
+                    ? 'bg-brand-gold-400 text-brand-navy-950'
+                    : 'text-white/60 hover:bg-white/8 hover:text-white',
+                ].join(' ')}
+              >
+                {tab.label}
+              </button>
             ))}
           </div>
 
-          <aside className="space-y-4">
-            <section className="rounded-[2rem] border border-white/10 bg-white/5 p-5">
-              <p className="text-sm tracking-[0.18em] text-brand-gold-400">MODEL INFO</p>
-              <h3 className="mt-2 font-heading text-2xl text-white">모델 정보</h3>
-              <div className="mt-5 space-y-4">
-                <div className="rounded-2xl border border-white/10 bg-brand-navy-950/45 p-4">
-                  <p className="text-xs text-white/45">사용 모델 버전</p>
-                  <p className="mt-2 font-semibold text-white">{prediction.modelVersion ?? '-'}</p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                  <div className="rounded-2xl border border-white/10 bg-brand-navy-950/45 p-4">
-                    <p className="text-xs text-white/45">Top-1 누적 정확도</p>
-                    <p className="mt-2 font-heading text-3xl text-brand-gold-400">
-                      {prediction.top1Accuracy != null ? `${prediction.top1Accuracy.toFixed(1)}%` : '-'}
-                    </p>
+          {activeTab === '기본예측' && (
+            <section className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.6fr)]">
+              <div className="space-y-4">
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <p className="text-sm tracking-[0.2em] text-brand-gold-400">예측 보드</p>
+                    <h2 className="mt-2 font-heading text-3xl text-white">예측 순위 목록</h2>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-brand-navy-950/45 p-4">
-                    <p className="text-xs text-white/45">Top-3 누적 정확도</p>
-                    <p className="mt-2 font-heading text-3xl text-white">
-                      {prediction.top3Accuracy != null ? `${prediction.top3Accuracy.toFixed(1)}%` : '-'}
-                    </p>
-                  </div>
+                  <p className="text-sm text-white/45">{sortedPredictions.length}마리 분석</p>
                 </div>
-              </div>
-            </section>
 
-            <section className="rounded-[2rem] border border-white/10 bg-white/5 p-5">
-              <p className="text-sm tracking-[0.18em] text-brand-gold-400">READ GUIDE</p>
-              <h3 className="mt-2 font-heading text-2xl text-white">읽는 법</h3>
-              <div className="mt-4 space-y-3 text-sm leading-7 text-white/68">
-                <p>예측 순위는 모델이 상대적으로 강하다고 판단한 순서입니다.</p>
-                <p>실제 착순과 다를 수 있으므로 배당, 컨디션, 현장 변수와 함께 보시는 것이 좋습니다.</p>
-                <p>조건 등급 색상은 승률 구간을 5단계로 나눈 참고 지표입니다.</p>
+                {sortedPredictions.map((item) => (
+                  <PredictionCard
+                    key={item.horseId}
+                    prediction={item}
+                    animateBars={animateBars}
+                  />
+                ))}
               </div>
+
+              <aside className="space-y-4">
+                <section className="rounded-[2rem] border border-white/10 bg-white/5 p-5">
+                  <p className="text-sm tracking-[0.18em] text-brand-gold-400">모델 정보</p>
+                  <h3 className="mt-2 font-heading text-2xl text-white">모델 정보</h3>
+                  <div className="mt-5 space-y-4">
+                    <div className="rounded-2xl border border-white/10 bg-brand-navy-950/45 p-4">
+                      <p className="text-xs text-white/45">사용 모델 버전</p>
+                      <p className="mt-2 font-semibold text-white">{prediction.modelVersion ?? '-'}</p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                      <div className="rounded-2xl border border-white/10 bg-brand-navy-950/45 p-4">
+                        <p className="text-xs text-white/45">1순위 누적 정확도</p>
+                        <p className="mt-2 font-heading text-3xl text-brand-gold-400">
+                          {prediction.top1Accuracy != null ? `${prediction.top1Accuracy.toFixed(1)}%` : '-'}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-brand-navy-950/45 p-4">
+                        <p className="text-xs text-white/45">3순위 누적 정확도</p>
+                        <p className="mt-2 font-heading text-3xl text-white">
+                          {prediction.top3Accuracy != null ? `${prediction.top3Accuracy.toFixed(1)}%` : '-'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="rounded-[2rem] border border-white/10 bg-white/5 p-5">
+                  <p className="text-sm tracking-[0.18em] text-brand-gold-400">읽는 법</p>
+                  <h3 className="mt-2 font-heading text-2xl text-white">읽는 법</h3>
+                  <div className="mt-4 space-y-3 text-sm leading-7 text-white/68">
+                    <p>예측 순위는 모델이 상대적으로 강하다고 판단한 순서입니다.</p>
+                    <p>실제 착순과 다를 수 있으므로 배당, 컨디션, 현장 변수와 함께 보시는 것이 좋습니다.</p>
+                    <p>조건 등급 색상은 승률 구간을 5단계로 나눈 참고 지표입니다.</p>
+                  </div>
+                </section>
+              </aside>
             </section>
-          </aside>
+          )}
+
+          {activeTab === '가상시나리오' && (
+            <Suspense fallback={<LoadingAnimation />}>
+              <CounterfactualUI predictions={sortedPredictions} />
+            </Suspense>
+          )}
+
+          {activeTab === '몬테카를로상세' && (
+            <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.7fr)]">
+              <div className="rounded-[2rem] border border-white/10 bg-white/5 p-5">
+                <p className="text-sm tracking-[0.18em] text-brand-gold-400">계산 흐름</p>
+                <h2 className="mt-2 font-heading text-3xl text-white">몬테카를로 상세</h2>
+                <p className="mt-3 text-sm leading-7 text-white/65">
+                  여러 번의 가상 경주를 반복해 각 말의 우승 가능성과 예상 순위 흐름을 비교합니다.
+                </p>
+                <div className="mt-5">
+                  <SimulationAnimation running={false} />
+                </div>
+              </div>
+
+              <aside className="rounded-[2rem] border border-white/10 bg-brand-navy-900/60 p-5">
+                <p className="text-sm tracking-[0.18em] text-brand-gold-400">요약 지표</p>
+                <div className="mt-5 grid gap-3">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-xs text-white/45">분석 대상</p>
+                    <p className="mt-2 font-heading text-3xl text-white">{sortedPredictions.length}마리</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-xs text-white/45">기본 1순위</p>
+                    <p className="mt-2 font-semibold text-brand-gold-400">
+                      {sortedPredictions[0]?.horseName ?? '-'}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-xs text-white/45">브라우저 계산</p>
+                    <p className="mt-2 text-sm text-white/70">가상 시나리오 탭에서 Worker가 별도로 실행됩니다.</p>
+                  </div>
+                </div>
+              </aside>
+            </section>
+          )}
         </section>
       </div>
     </Layout>
