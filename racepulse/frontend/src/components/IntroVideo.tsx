@@ -20,6 +20,10 @@ export const INTRO_WATCHED_STORAGE_KEY = 'racepulse_intro_watched'
 // 정적 자산 경로를 영문으로 고정해 두면 개발/빌드 환경마다 인코딩 차이로 깨질 가능성을 줄일 수 있습니다.
 const INTRO_VIDEO_SOURCE = '/intro-video.mp4'
 
+// WebM은 같은 화질에서 MP4보다 더 작아질 수 있는 영상 포맷입니다.
+// 변환 명령 예시: ffmpeg -i intro-video.mp4 -c:v libvpx-vp9 -crf 30 -b:v 0 intro-video.webm
+const INTRO_VIDEO_WEBM_SOURCE = '/intro-video.webm'
+
 // 포스터 이미지는 영상이 재생되기 전 사용자가 보게 될 첫 정지 화면입니다.
 const INTRO_POSTER_SOURCE = '/intro-poster.jpg'
 
@@ -185,6 +189,7 @@ function IntroVideo({ onComplete }: IntroVideoProps) {
           finishIntro()
         }}
       >
+        <source src={INTRO_VIDEO_WEBM_SOURCE} type="video/webm" />
         <source src={INTRO_VIDEO_SOURCE} type="video/mp4" />
       </video>
 
