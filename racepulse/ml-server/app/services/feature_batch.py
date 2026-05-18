@@ -82,9 +82,15 @@ class FeatureBatchService:
                 processed += 1
 
             except Exception as exc:
+                import traceback
                 logger.error(
-                    "[배치 피처] race_entry_id=%d 계산 실패: %s", entry.id, exc
+                    "[배치 피처] race_entry_id=%d 계산 실패:\n%s",
+                    entry.id,
+                    traceback.format_exc(),
                 )
+                # PostgreSQL 트랜잭션이 오염(aborted)된 상태를 복구합니다.
+                # rollback 없이 계속하면 이후 entry들이 전부 InFailedSQLTransactionError로 연쇄 실패합니다.
+                await self.db.rollback()
                 errors += 1
 
         logger.info(

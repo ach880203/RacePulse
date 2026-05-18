@@ -2,51 +2,21 @@
 // DashboardPage.tsx — ML 예측 정확도 대시보드 페이지
 // 라우트: /dashboard
 // =============================================================================
-// Recharts 컴포넌트 설명:
-//   ResponsiveContainer = 부모 너비에 맞춰 자동으로 크기 조절
-//   LineChart           = 꺾은선 그래프 (추이 분석에 사용)
-//   BarChart            = 막대 그래프 (비교 분석에 사용)
-//   Line/Bar            = 실제 데이터를 시각화하는 요소
-//   XAxis/YAxis         = X축, Y축 설정
-//   Tooltip             = 마우스 오버 시 데이터 말풍선
-//   Legend              = 범례 (어떤 색이 무엇인지)
-//   CartesianGrid       = 배경 격자선 (가독성 향상)
+// ECharts core 방식 설명:
+//   필요한 차트 종류만 등록해서 쓰면 사용하지 않는 코드는 번들에서 빠질 가능성이 커집니다.
+//   이것이 번들 최적화에서 말하는 Tree Shaking 효과입니다.
 // =============================================================================
 
 import Layout from '../components/layout/Layout'
 import CircularGauge from '../components/CircularGauge'
 import PredictionResult from '../components/PredictionResult'
+import OptimizedEChart from '../components/dynamic/OptimizedEChart'
 import { useAccuracyStats } from '../hooks/useDashboard'
-
-import {
-  BarChart, Bar,
-  LineChart, Line,
-  XAxis, YAxis,
-  CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer,
-} from 'recharts'
+import type { EChartsOption } from '../components/dynamic/OptimizedEChart'
 
 // 경마장 코드 → 한글 이름
 const MEET_LABELS: Record<string, string> = {
   SC: '서울', BU: '부산', JJ: '제주',
-}
-
-// Recharts 공통 툴팁 스타일
-const tooltipStyle = {
-  contentStyle: {
-    background: '#0d1628',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: '0.75rem',
-    color: '#fff',
-    fontSize: '0.75rem',
-  },
-}
-
-function formatTooltipPercent(value: number | string | readonly (number | string)[] | undefined) {
-  if (Array.isArray(value)) {
-    return `${value.join(', ')}%`
-  }
-  return `${value ?? '-'}%`
 }
 
 // 데모 예측 목록 (predictions API가 아직 없으므로 정적 데이터 사용)
@@ -70,6 +40,90 @@ function DashboardPage() {
         'Top-3': acc.top3,
       }))
     : []
+
+  const monthlyTrendOption: EChartsOption = {
+    tooltip: {
+      trigger: 'axis',
+      valueFormatter: (value) => `${value}%`,
+    },
+    legend: {
+      bottom: 0,
+      textStyle: { color: 'rgba(255,255,255,0.6)' },
+    },
+    grid: { left: 44, right: 20, top: 18, bottom: 48 },
+    xAxis: {
+      type: 'category',
+      data: stats?.monthlyTrend?.map((item) => item.month) ?? [],
+      axisLabel: { color: 'rgba(255,255,255,0.45)' },
+      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.2)' } },
+    },
+    yAxis: {
+      type: 'value',
+      min: 0,
+      max: 100,
+      axisLabel: { color: 'rgba(255,255,255,0.45)', formatter: '{value}%' },
+      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+    },
+    series: [
+      {
+        type: 'line',
+        name: '1순위 적중률',
+        data: stats?.monthlyTrend?.map((item) => item.top1) ?? [],
+        smooth: true,
+        symbolSize: 7,
+        lineStyle: { color: 'var(--color-brand-gold-400)', width: 2 },
+        itemStyle: { color: 'var(--color-brand-gold-400)' },
+      },
+      {
+        type: 'line',
+        name: '3순위 적중률',
+        data: stats?.monthlyTrend?.map((item) => item.top3) ?? [],
+        smooth: true,
+        symbolSize: 7,
+        lineStyle: { color: 'rgba(255,255,255,0.6)', width: 2, type: 'dashed' },
+        itemStyle: { color: 'rgba(255,255,255,0.6)' },
+      },
+    ],
+  }
+
+  const meetAccuracyOption: EChartsOption = {
+    tooltip: {
+      trigger: 'axis',
+      valueFormatter: (value) => `${value}%`,
+    },
+    legend: {
+      bottom: 0,
+      textStyle: { color: 'rgba(255,255,255,0.6)' },
+    },
+    grid: { left: 44, right: 20, top: 18, bottom: 46 },
+    xAxis: {
+      type: 'category',
+      data: meetData.map((item) => item.name),
+      axisLabel: { color: 'rgba(255,255,255,0.6)' },
+      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.2)' } },
+    },
+    yAxis: {
+      type: 'value',
+      min: 0,
+      max: 100,
+      axisLabel: { color: 'rgba(255,255,255,0.45)', formatter: '{value}%' },
+      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+    },
+    series: [
+      {
+        type: 'bar',
+        name: '1순위 적중률',
+        data: meetData.map((item) => item['Top-1']),
+        itemStyle: { color: 'var(--color-brand-gold-400)', borderRadius: [4, 4, 0, 0] },
+      },
+      {
+        type: 'bar',
+        name: '3순위 적중률',
+        data: meetData.map((item) => item['Top-3']),
+        itemStyle: { color: 'rgba(255,255,255,0.25)', borderRadius: [4, 4, 0, 0] },
+      },
+    ],
+  }
 
   return (
     <Layout>
@@ -125,57 +179,8 @@ function DashboardPage() {
           <h2 className="font-heading text-2xl text-white">월별 정확도 추이</h2>
           <div className="rounded-[2rem] border border-white/10 bg-brand-navy-900/60 p-5">
             {stats?.monthlyTrend?.length ? (
-              // ResponsiveContainer = 부모 너비에 맞게 차트가 자동으로 늘어납니다.
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart
-                  data={stats.monthlyTrend}
-                  margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
-                >
-                  {/* 배경 격자선 */}
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                  {/* X축: 월 표시 */}
-                  <XAxis
-                    dataKey="month"
-                    stroke="rgba(255,255,255,0.3)"
-                    tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 11 }}
-                  />
-                  {/* Y축: 정확도(%) 표시, 0~100 범위 */}
-                  <YAxis
-                    domain={[0, 100]}
-                    tickFormatter={(v) => `${v}%`}
-                    stroke="rgba(255,255,255,0.3)"
-                    tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 11 }}
-                    width={45}
-                  />
-                  <Tooltip
-                    {...tooltipStyle}
-                    formatter={(v) => [formatTooltipPercent(v)]}
-                  />
-                  <Legend
-                    wrapperStyle={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.75rem' }}
-                  />
-                  {/* Top-1 꺾은선 — 골드색 */}
-                  <Line
-                    type="monotone"
-                    dataKey="top1"
-                    name="Top-1 적중률"
-                    stroke="#f5c842"
-                    strokeWidth={2}
-                    dot={{ r: 4, fill: '#f5c842' }}
-                    activeDot={{ r: 6 }}
-                  />
-                  {/* Top-3 꺾은선 — 흰색 계열 */}
-                  <Line
-                    type="monotone"
-                    dataKey="top3"
-                    name="Top-3 적중률"
-                    stroke="rgba(255,255,255,0.6)"
-                    strokeWidth={2}
-                    strokeDasharray="5 3"
-                    dot={{ r: 4, fill: 'rgba(255,255,255,0.6)' }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              // OptimizedEChart = ECharts를 React에서 쓰기 쉽게 감싼 컴포넌트입니다.
+              <OptimizedEChart option={monthlyTrendOption} height={280} />
             ) : (
               <div className="flex h-64 items-center justify-center">
                 <p className="text-sm text-white/40">추이 데이터를 불러오는 중...</p>
@@ -191,38 +196,7 @@ function DashboardPage() {
           <h2 className="font-heading text-2xl text-white">경마장별 정확도</h2>
           <div className="rounded-[2rem] border border-white/10 bg-brand-navy-900/60 p-5">
             {meetData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart
-                  data={meetData}
-                  margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
-                  barCategoryGap="35%"
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                  <XAxis
-                    dataKey="name"
-                    stroke="rgba(255,255,255,0.3)"
-                    tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 12 }}
-                  />
-                  <YAxis
-                    domain={[0, 100]}
-                    tickFormatter={(v) => `${v}%`}
-                    stroke="rgba(255,255,255,0.3)"
-                    tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 11 }}
-                    width={45}
-                  />
-                  <Tooltip
-                    {...tooltipStyle}
-                    formatter={(v) => [formatTooltipPercent(v)]}
-                  />
-                  <Legend
-                    wrapperStyle={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.75rem' }}
-                  />
-                  {/* Top-1 막대 — 골드 */}
-                  <Bar dataKey="Top-1" fill="#f5c842" radius={[4, 4, 0, 0]} />
-                  {/* Top-3 막대 — 반투명 흰색 */}
-                  <Bar dataKey="Top-3" fill="rgba(255,255,255,0.25)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <OptimizedEChart option={meetAccuracyOption} height={220} />
             ) : (
               <div className="flex h-48 items-center justify-center animate-pulse">
                 <p className="text-sm text-white/40">불러오는 중...</p>

@@ -50,6 +50,7 @@ logger = logging.getLogger(__name__)
 # 모델이 학습할 피처 컬럼 이름 목록 (순서가 중요합니다!)
 # 학습할 때와 예측할 때 반드시 동일한 순서여야 합니다.
 FEATURE_COLUMNS = [
+    # ── 말 기본 피처 (8개) ──────────────────────────────────────────────────
     "horse_win_rate_total",
     "horse_win_rate_recent",
     "horse_place_rate",
@@ -58,21 +59,31 @@ FEATURE_COLUMNS = [
     "days_since_last_race",
     "avg_rank_last5",
     "best_rank_last5",
+    # ── 출전 플래그 (4개) ───────────────────────────────────────────────────
     "is_debut",
     "is_comeback",
     "class_change",
     "distance_change",
+    # ── 기수/조교사 피처 (5개) ──────────────────────────────────────────────
     "jockey_win_rate_total",
     "jockey_win_rate_recent",
     "jockey_horse_win_rate",
     "trainer_win_rate_total",
     "trainer_horse_win_rate",
+    # ── 경주 조건 피처 (6개) ────────────────────────────────────────────────
     "gate_no",
     "burden_weight",
     "odds_win",
     "course_win_rate",
     "distance_win_rate",
     "condition_win_rate",
+    # ── 라이벌 직접 대결 피처 (2개) — rival_records 테이블 필요 ────────────
+    "rival_h2h_win_rate",    # 오늘 경쟁마들과의 직접 대결 승률
+    "rival_h2h_races",       # 직접 대결 총 횟수 (데이터 신뢰도 지표)
+    # ── 주행 스타일 피처 (3개) — horse_running_style 테이블 필요 ────────────
+    "running_style",         # 0=선행, 1=중간, 2=추입, 3=압박
+    "style_confidence",      # 스타일 분류 신뢰도
+    "inner_vs_outer_diff",   # 양수=선행 유리, 음수=추입 유리
 ]
 
 
@@ -128,9 +139,19 @@ class MLDatasetService:
         race_ids  = [row.race_id  for row in entry_rows]
 
         # ml_feature_store에서 피처 벡터 조회
+        # IN (entry_ids) 대신 JOIN을 사용합니다.
+        # entry_ids가 36,000개 이상이면 IN 절 파라미터 한도를 초과하기 때문입니다.
         features_stmt = (
             select(MLFeatureStore)
-            .where(MLFeatureStore.race_entry_id.in_(entry_ids))
+            .join(RaceEntry, MLFeatureStore.race_entry_id == RaceEntry.id)
+            .join(Race, RaceEntry.race_id == Race.id)
+            .where(
+                and_(
+                    Race.rc_date >= start_date,
+                    Race.rc_date <= end_date,
+                    Race.status == RaceStatusEnum.COMPLETED,
+                )
+            )
             .order_by(MLFeatureStore.race_entry_id)
         )
         feature_records = list((await self.db.scalars(features_stmt)).all())
@@ -140,19 +161,29 @@ class MLDatasetService:
             rec.race_entry_id: rec.features for rec in feature_records
         }
 
-        # 실제 착순(정답) 조회
+        # 실제 착순(정답) 조회 — 마찬가지로 JOIN 사용
         result_stmt = (
             select(
                 RaceResult.race_entry_id,
                 RaceResult.rank,
             )
-            .where(RaceResult.race_entry_id.in_(entry_ids))
+            .join(RaceEntry, RaceResult.race_entry_id == RaceEntry.id)
+            .join(Race, RaceEntry.race_id == Race.id)
+            .where(
+                and_(
+                    Race.rc_date >= start_date,
+                    Race.rc_date <= end_date,
+                    Race.status == RaceStatusEnum.COMPLETED,
+                )
+            )
         )
         result_rows = list((await self.db.execute(result_stmt)).all())
         result_map: dict[int, int] = {
             row.race_entry_id: row.rank
             for row in result_rows
-            if row.rank is not None
+            # rank가 None 이거나 20 초과면 실격/기권 등 비정상 데이터로 제외합니다.
+            # 비정상 rank (91 등)가 학습 레이블로 들어가면 LightGBM 오류 발생.
+            if row.rank is not None and 1 <= row.rank <= 20
         }
 
         # 피처와 정답이 모두 있는 출전마만 학습에 사용합니다.
@@ -172,6 +203,11 @@ class MLDatasetService:
         labels = []
         groups = []
 
+        # entry_id → race_id 매핑 딕셔너리를 만들어 둡니다.
+        # feature_map의 features JSONB에는 ML 피처만 저장되고 race_id는 없으므로
+        # 위에서 조회한 entry_rows 결과를 재사용합니다.
+        entry_to_race: dict[int, int] = {row.entry_id: row.race_id for row in entry_rows}
+
         prev_race_id = None
         for eid in valid_entries:
             feat  = feature_map[eid]
@@ -181,7 +217,7 @@ class MLDatasetService:
 
             # race_id_groups: 같은 경주 출전마들을 하나의 그룹으로 묶습니다.
             # LightGBM 순위 학습(rank)에서 그룹 정보가 필요합니다.
-            cur_race_id = feature_map[eid].get("__race_id__") or 0
+            cur_race_id = entry_to_race.get(eid, 0)
             if cur_race_id != prev_race_id:
                 groups.append(1)
                 prev_race_id = cur_race_id
@@ -201,25 +237,57 @@ class MLDatasetService:
         self,
         X: pd.DataFrame,
         y: pd.Series,
+        groups: Optional[list[int]] = None,
         test_size: float = 0.2,
-    ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
+    ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, list[int], list[int]]:
         """학습/테스트 데이터를 분리합니다.
 
         test_size=0.2 = 전체의 20%를 테스트용으로 남겨둡니다.
         shuffle=False = 시간 순서를 유지합니다.
           시간 순서를 섞으면 미래 데이터로 과거를 예측하는 데이터 누수가 발생합니다.
           예: 2026년 3월 데이터를 학습하고 2026년 1월을 테스트 → 미래를 이미 봤으므로 불공정
+
+        groups도 함께 분리합니다.
+          groups를 넘기지 않으면 evaluate_model이 전체를 경주 1개로 취급해
+          total_races=1, accuracy=0 이 나오는 버그가 발생합니다.
         """
-        # shuffle=False로 시간 순서를 보존합니다.
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y,
-            test_size=test_size,
-            shuffle=False,  # 시간 순서 유지
-        )
+        n_total = len(X)
+        n_test  = int(n_total * test_size)
+        n_train = n_total - n_test
+
+        X_train = X.iloc[:n_train]
+        X_test  = X.iloc[n_train:]
+        y_train = y.iloc[:n_train]
+        y_test  = y.iloc[n_train:]
+
+        # groups를 train / test 로 분리합니다.
+        train_groups: list[int] = []
+        test_groups:  list[int] = []
+
+        if groups:
+            cumsum = 0
+            for g in groups:
+                if cumsum + g <= n_train:
+                    # 이 경주 전체가 학습 구간 안에 있습니다.
+                    train_groups.append(g)
+                elif cumsum >= n_train:
+                    # 이 경주 전체가 테스트 구간 안에 있습니다.
+                    test_groups.append(g)
+                else:
+                    # 경주가 학습/테스트 경계에 걸쳐 있는 경우 양쪽에 나눠 넣습니다.
+                    train_part = n_train - cumsum
+                    test_part  = g - train_part
+                    if train_part > 0:
+                        train_groups.append(train_part)
+                    if test_part > 0:
+                        test_groups.append(test_part)
+                cumsum += g
+
         logger.info(
-            "[데이터셋] 학습=%d, 테스트=%d", len(X_train), len(X_test)
+            "[데이터셋] 학습=%d(%d경주), 테스트=%d(%d경주)",
+            len(X_train), len(train_groups), len(X_test), len(test_groups)
         )
-        return X_train, X_test, y_train, y_test
+        return X_train, X_test, y_train, y_test, train_groups, test_groups
 
     def preprocess_features(
         self,

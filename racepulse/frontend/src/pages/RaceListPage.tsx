@@ -1,6 +1,10 @@
 // useState = 필터 값처럼 사용자가 조작하는 화면 상태를 저장하는 도구입니다.
 import { useState } from 'react'
 
+// List = 화면에 보이는 행만 실제 DOM으로 그려 긴 목록 렌더링 비용을 줄이는 가상화 컴포넌트입니다.
+import { List } from 'react-window'
+import type { RowComponentProps } from 'react-window'
+
 // Link = 경주 카드를 눌렀을 때 상세 경로로 이동시키는 라우터 링크입니다.
 import { Link } from 'react-router-dom'
 
@@ -14,7 +18,7 @@ import { useRaces } from '../hooks/useRaces'
 import DataStatusBadge from '../components/DataStatusBadge'
 
 // 타입 정의
-import type { MeetCode, RaceStatus } from '../types/race'
+import type { MeetCode, Race, RaceStatus } from '../types/race'
 
 // =============================================================================
 // 상수 정의
@@ -43,6 +47,12 @@ const STATUS_LABELS: Record<RaceStatus, string> = {
 // 한 페이지에 표시할 경주 수
 const PAGE_SIZE = 10
 
+// 100건 이상부터 가상화를 켭니다. 적은 목록은 일반 렌더링이 더 단순하고 충분히 빠릅니다.
+const VIRTUAL_LIST_THRESHOLD = 100
+
+// react-window는 각 행의 높이를 미리 알아야 스크롤 위치를 빠르게 계산할 수 있습니다.
+const VIRTUAL_ROW_HEIGHT = 178
+
 // =============================================================================
 // 로딩 스켈레톤
 // =============================================================================
@@ -59,6 +69,67 @@ function RaceRowSkeleton() {
           <div className="h-4 w-16 rounded-full bg-white/10" />
         </div>
       </div>
+    </div>
+  )
+}
+
+interface RaceCardProps {
+  race: Race
+}
+
+function RaceCard({ race }: RaceCardProps) {
+  return (
+    <Link
+      to={`/races/${race.id}`}
+      className="group block rounded-[1.75rem] border border-white/10 bg-white/5 p-5 transition-transform hover:-translate-y-1 hover:border-brand-gold-400/40"
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-2">
+          <p className="text-sm text-white/55">
+            {MEET_LABELS[race.meetCode] ?? race.meetCode} 경마장
+          </p>
+          <h3 className="font-heading text-2xl text-white group-hover:text-brand-gold-400">
+            {race.raceName}
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 text-sm text-white/68 sm:min-w-[16rem]">
+          <div>
+            <p className="text-white/45">거리</p>
+            <p className="mt-1 font-semibold text-white">{race.distance}m</p>
+          </div>
+          <div>
+            <p className="text-white/45">출발시간</p>
+            <p className="mt-1 font-semibold text-white">{race.startTime ?? '미정'}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 flex items-center justify-between border-t border-white/8 pt-4 text-sm">
+        <span className="text-white/55">상태</span>
+        {race.dataStatus
+          ? <DataStatusBadge status={race.dataStatus} />
+          : (
+            <span className="rounded-full border border-brand-gold-400/35 bg-brand-gold-400/10 px-3 py-1 text-brand-gold-400">
+              {STATUS_LABELS[race.status] ?? race.status}
+            </span>
+          )
+        }
+      </div>
+    </Link>
+  )
+}
+
+interface VirtualRaceRowProps {
+  races: Race[]
+}
+
+function VirtualRaceRow({ index, style, races }: RowComponentProps<VirtualRaceRowProps>) {
+  // 가상화는 전체 목록을 DOM에 다 넣지 않고, 스크롤 위치 주변 행만 그립니다.
+  // 이 wrapper에 react-window가 계산한 style을 붙여야 스크롤 위치가 정확합니다.
+  return (
+    <div style={style} className="px-1 pb-4">
+      <RaceCard race={races[index]} />
     </div>
   )
 }
@@ -192,47 +263,21 @@ function RaceListPage() {
           {/* 실제 경주 카드 */}
           {!isLoading && races.length > 0 && (
             <div className="grid gap-4">
-              {races.map((race) => (
-                <Link
-                  key={race.id}
-                  to={`/races/${race.id}`}
-                  className="group rounded-[1.75rem] border border-white/10 bg-white/5 p-5 transition-transform hover:-translate-y-1 hover:border-brand-gold-400/40"
-                >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="space-y-2">
-                      <p className="text-sm text-white/55">
-                        {MEET_LABELS[race.meetCode] ?? race.meetCode} 경마장
-                      </p>
-                      <h3 className="font-heading text-2xl text-white group-hover:text-brand-gold-400">
-                        {race.raceName}
-                      </h3>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 text-sm text-white/68 sm:min-w-[16rem]">
-                      <div>
-                        <p className="text-white/45">거리</p>
-                        <p className="mt-1 font-semibold text-white">{race.distance}m</p>
-                      </div>
-                      <div>
-                        <p className="text-white/45">출발시간</p>
-                        <p className="mt-1 font-semibold text-white">{race.startTime ?? '미정'}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 flex items-center justify-between border-t border-white/8 pt-4 text-sm">
-                    <span className="text-white/55">상태</span>
-                    {race.dataStatus
-                      ? <DataStatusBadge status={race.dataStatus} />
-                      : (
-                        <span className="rounded-full border border-brand-gold-400/35 bg-brand-gold-400/10 px-3 py-1 text-brand-gold-400">
-                          {STATUS_LABELS[race.status] ?? race.status}
-                        </span>
-                      )
-                    }
-                  </div>
-                </Link>
-              ))}
+              {races.length >= VIRTUAL_LIST_THRESHOLD ? (
+                <List
+                  className="rounded-[1.75rem]"
+                  rowComponent={VirtualRaceRow}
+                  rowCount={races.length}
+                  rowHeight={VIRTUAL_ROW_HEIGHT}
+                  rowProps={{ races }}
+                  overscanCount={4}
+                  style={{ height: 720 }}
+                />
+              ) : (
+                races.map((race) => (
+                  <RaceCard key={race.id} race={race} />
+                ))
+              )}
             </div>
           )}
 
