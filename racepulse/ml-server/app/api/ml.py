@@ -30,6 +30,8 @@ from app.services.ml_trainer import MLTrainerService
 from app.services.model_manager import ModelManagerService
 from app.services.monte_carlo import MonteCarloService
 from app.services.predictor import PredictorService
+from app.services.rival_service import RivalService
+from app.services.running_style_service import RunningStyleService
 
 logger = logging.getLogger(__name__)
 
@@ -184,35 +186,50 @@ async def train_model(
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
-    # 2. 학습/테스트 분리
-    X_train, X_test, y_train, y_test = dataset_svc.split_train_test(X, y)
+    # 2. 학습/테스트 분리 (groups도 함께 분리)
+    X_train, X_test, y_train, y_test, train_groups, test_groups = \
+        dataset_svc.split_train_test(X, y, groups)
 
     # 3. 피처 전처리 (결측값 처리 + 정규화)
     X_train_s, X_test_s, scaler = dataset_svc.preprocess_features(X_train, X_test)
 
     # 4. 모델 학습 (CPU 집중 작업 → 별도 스레드에서 실행)
-    # asyncio.to_thread() = CPU 집중 작업을 별도 스레드로 넘겨
-    # FastAPI의 비동기 이벤트 루프가 블로킹되지 않게 합니다.
+    # ── 순위 레이블 변환 ───────────────────────────────────────────────────────
+    # Ranker는 "숫자가 높을수록 더 좋은 샘플"로 학습합니다.
+    # 경마 착순은 1=1위(최고)이므로 그대로 넣으면 꼴찌를 1위로 예측하는 반전 발생.
+    #
+    # XGBoost: 음수(-rank) 허용 → -1=1위, -10=꼴찌
+    # LightGBM lambdarank: 0~3 정수만 허용 (4단계 관련도 점수)
+    #   rank 1    → 3 (최우수)
+    #   rank 2~3  → 2 (우수)
+    #   rank 4~6  → 1 (보통)
+    #   rank 7이상 → 0 (하위)
+    import numpy as np
+    y_train_xgb = -y_train.values                         # XGBoost용: 음수 반전
+    y_train_lgbm = np.where(y_train.values == 1, 3,
+                   np.where(y_train.values <= 3, 2,
+                   np.where(y_train.values <= 6, 1, 0))).astype(int)
+    y_test_original = y_test.values                       # 평가용: 원래 순위
+
     try:
         if model_type.lower() == "lgbm":
-            # LightGBM 학습
             model = await asyncio.to_thread(
-                trainer.train_lightgbm, X_train_s, y_train.values, groups
+                trainer.train_lightgbm, X_train_s, y_train_lgbm, train_groups
             )
             model_name = "lgbm"
         else:
-            # XGBoost 학습 (기본)
             model = await asyncio.to_thread(
-                trainer.train_xgboost, X_train_s, y_train.values, groups
+                trainer.train_xgboost, X_train_s, y_train_xgb, train_groups
             )
             model_name = "xgboost"
     except Exception as exc:
         logger.error("[학습] 모델 학습 실패: %s", exc)
         raise HTTPException(status_code=500, detail=f"모델 학습 실패: {exc}")
 
-    # 5. 테스트 데이터로 성능 평가
+    # 5. 테스트 데이터로 성능 평가 (원래 순위 레이블 사용)
     metrics = trainer.evaluate_model(
-        model, X_test_s, y_test.values,
+        model, X_test_s, y_test_original,
+        groups=test_groups,
         model_name=model_name
     )
 
@@ -280,6 +297,35 @@ async def list_models(db: AsyncSession = Depends(get_db)):
         },
         "message": f"모델 {len(models)}건 조회 성공",
     }
+
+
+@router.post("/predict/{race_id}/ensemble")
+async def predict_race_ensemble(
+    race_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """XGBoost + LightGBM 앙상블 예측을 실행합니다.
+
+    두 모델의 점수를 Min-Max 정규화 후 평균내어 더 안정적인 예측을 제공합니다.
+    단일 모델보다 2·3위 예측 안정성이 높습니다.
+    """
+    predictor = PredictorService(db)
+    try:
+        results = await predictor.predict_race_ensemble(race_id)
+        return {
+            "success": True,
+            "data": {
+                "raceId":      race_id,
+                "modelName":   "ensemble",
+                "predictions": results,
+            },
+            "message": f"앙상블 예측 완료 ({len(results)}마리)",
+        }
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        logger.error("[앙상블 예측] race_id=%d 실패: %s", race_id, exc)
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.post("/predict/{race_id}")
@@ -437,3 +483,56 @@ async def recalculate_historical_features(
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+# =============================================================================
+# 라이벌 직접 대결 + 주행 스타일 엔드포인트
+# =============================================================================
+
+@router.post("/rivals/calculate")
+async def calculate_rivals(db: AsyncSession = Depends(get_db)):
+    """race_results 데이터 전체에서 말 간 직접 대결 이력을 배치 계산합니다.
+
+    rival_records 테이블을 채웁니다.
+    데이터가 많을수록 시간이 걸리므로 처음 1회만 실행하면 됩니다.
+    이후 새 경주 결과 수집 후 주기적으로 실행하면 갱신됩니다.
+    """
+    svc = RivalService(db)
+    try:
+        result = await svc.calculate_all_rivals()
+        return {"success": True, "data": result, "message": f"라이벌 대결 이력 {result['rival_pairs_saved']}쌍 저장 완료"}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/running-style/calculate")
+async def calculate_running_styles(db: AsyncSession = Depends(get_db)):
+    """race_results + race_entries 데이터에서 말별 주행 스타일을 배치 분류합니다.
+
+    horse_running_style 테이블을 채웁니다.
+    게이트 번호와 착순의 상관관계로 LEADER/STALKER/CLOSER를 분류합니다.
+    """
+    svc = RunningStyleService(db)
+    try:
+        result = await svc.calculate_all_styles()
+        return {"success": True, "data": result, "message": f"주행 스타일 {result['horses_classified']}마리 분류 완료"}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.get("/running-style/{race_id}")
+async def get_race_running_styles(race_id: int, db: AsyncSession = Depends(get_db)):
+    """특정 경주 출전마들의 주행 스타일을 조회합니다. FE 경주 분석 카드에서 사용합니다."""
+    svc = RunningStyleService(db)
+    result = await svc.get_race_style_summary(race_id)
+    return {"success": True, "data": result, "message": f"{len(result)}마리 스타일 조회 성공"}
+
+
+@router.get("/rivals/{horse_id_a}/{horse_id_b}")
+async def get_head_to_head(horse_id_a: int, horse_id_b: int, db: AsyncSession = Depends(get_db)):
+    """두 말의 직접 대결 통계를 조회합니다. FE 라이벌 대결 섹션에서 사용합니다."""
+    svc = RivalService(db)
+    result = await svc.get_h2h_stats(horse_id_a, horse_id_b)
+    if not result:
+        raise HTTPException(status_code=404, detail="직접 대결 이력이 없습니다.")
+    return {"success": True, "data": result, "message": "직접 대결 통계 조회 성공"}

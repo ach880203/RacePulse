@@ -242,7 +242,7 @@ class MonteCarloService:
                 n_simulations=completed_simulations,
                 gate_bias_applied=True,
                 weather_exists=rows[0].get("weather") is not None,
-                smart_money_exists=any(row.get("opening_odds") is not None for row in rows),
+                smart_money_exists=any(row.get("opening") is not None for row in rows),
             ),
             "gate_bias_applied": True,
             "weather_uncertainty_sigma": weather_sigma,
@@ -361,14 +361,15 @@ class MonteCarloService:
 
     async def _load_prediction_rows(self, race_id: int) -> list[dict[str, Any]]:
         odds_history_exists = await self._table_exists("odds_history")
-        odds_select = "oh.opening_odds, oh.final_odds" if odds_history_exists else "NULL AS opening_odds, NULL AS final_odds"
+        # DB 컬럼명: opening, final (V9 마이그레이션 기준)
+        odds_select = "oh.opening, oh.final" if odds_history_exists else "NULL AS opening, NULL AS final"
         odds_join = (
             """
             LEFT JOIN LATERAL (
-                SELECT opening_odds, final_odds
+                SELECT opening, final
                 FROM odds_history
                 WHERE odds_history.race_entry_id = e.id
-                ORDER BY collected_at DESC NULLS LAST, id DESC
+                ORDER BY recorded_at DESC NULLS LAST, id DESC
                 LIMIT 1
             ) oh ON true
             """
@@ -444,8 +445,8 @@ class MonteCarloService:
         """초기 배당보다 최종 배당이 15% 이상 내려간 말을 스마트 머니 대상으로 봅니다."""
         detected = []
         for index, row in enumerate(rows):
-            opening = self._safe_float(row.get("opening_odds"))
-            final = self._safe_float(row.get("final_odds"))
+            opening = self._safe_float(row.get("opening"))
+            final   = self._safe_float(row.get("final"))
             if opening is None or final is None or opening <= 0:
                 continue
             if (opening - final) / opening >= 0.15:
