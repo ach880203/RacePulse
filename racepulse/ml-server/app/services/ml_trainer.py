@@ -125,7 +125,8 @@ class MLTrainerService:
         start = time.time()
 
         model = lgb.LGBMRanker(
-            objective="rank",  # 순위 예측 목적함수
+            # LGBMRanker는 objective를 명시하지 않으면 lambdarank가 자동 적용됩니다.
+            # "rank"는 유효하지 않은 값이므로 제거합니다.
             num_leaves=31,     # 결정 트리 잎 수 (많을수록 복잡한 패턴 학습)
             learning_rate=0.1,
             n_estimators=300,

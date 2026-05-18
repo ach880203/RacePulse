@@ -66,10 +66,37 @@
 
 ---
 
+## 📝 프롬프트 실행 현황 (총 20개 / 전체 완료 ✅)
+
+| # | 프롬프트 | 담당 | 상태 |
+|---|---------|------|------|
+| 01 | intro-video | FE | ✅ 완료 |
+| 02 | be-basic-api | BE | ✅ 완료 |
+| 03 | pwa | FE | ✅ 완료 |
+| 04 | home-page | FE | ✅ 완료 |
+| 05 | kra-api | ML/ARCH | ✅ 완료 |
+| 06 | weather-api | ML/ARCH | ✅ 완료 |
+| 07 | kakao-oauth | BE | ✅ 완료 |
+| 08 | apscheduler-redis | ML/ARCH | ✅ 완료 |
+| 09 | web-push-vapid | BE | ✅ 완료 |
+| 10 | fe-api-connect | FE | ✅ 완료 |
+| 11 | detail-pages | FE | ✅ 완료 |
+| 12 | ml-feature-engineering | ML | ✅ 완료 |
+| 13 | ai-commentary | ML/BE | ✅ 완료 |
+| 14 | dashboard | FE | ✅ 완료 |
+| 15 | ml-model-training | ML | ✅ 완료 |
+| 16 | prediction-page | FE | ✅ 완료 |
+| 17 | dynamic-ui | FE | ✅ 완료 |
+| 18 | monte-carlo | ML | ✅ 완료 |
+| 19 | search-page | FE | ✅ 완료 |
+| 20 | mypage | FE | ✅ 완료 |
+
+---
+
 ## ✅ 핵심 확정사항 요약
 
 ### 기술 스택
-- **DB**: PostgreSQL 43개 테이블 (Phase 0~3 / Flyway V1~V4)
+- **DB**: PostgreSQL (Flyway V1~V6 / Phase 0~2 완료)
 - **캐싱**: Redis (피처 스토어 당일 경주 100% 캐싱 + MC 결과)
 - **ML 모델**: XGBoost + LightGBM / 피처 23개
 - **AI 해설**: GPT-4o-mini / 금요일 사전 + 월요일 결과 / Redis 캐싱
@@ -113,28 +140,74 @@
 
 ---
 
-## 📋 미완료 액션 아이템
+## 📋 액션 아이템
 
-### 🔴 즉시 처리
-- [ ] **창현님**: ml-server Dockerfile 작성 (Phase 2 첫 번째 태스크 / 마사회 실테스트 전제)
-- [ ] **BE**: `ErrorCode.java` + `BusinessException.java` + `GlobalExceptionHandler.java` 구현
-- [ ] **BE**: 에러 페이지 3종 (404 / 401·403 / 500) + 토스트 구현
+### ✅ 완료
+- [x] **창현님**: ml-server Dockerfile 작성 ✅ 2026-05-15
+- [x] **창현님**: ml-server requirements.txt / .dockerignore 작성 ✅ 2026-05-15
+- [x] **창현님**: docker-compose.yml ml-server build 연결 ✅ 2026-05-15
+- [x] **BE**: `ErrorCode.java` + `BusinessException.java` + `GlobalExceptionHandler.java` 구현 ✅ 2026-05-15
+- [x] **BE**: 에러 페이지 3종 (404 / 401·403 / 500) + 토스트 구현 ✅ 2026-05-15
+- [x] **ARCH**: `V6__phase2_ml_race_entries.sql` 생성 (11개 테이블) ✅ 2026-05-15
+- [x] **ML**: Monte Carlo 고도화 (QMC/Sobol + Antithetic + Adaptive CI + 게이트편향 + Cholesky 상관행렬 + 날씨불확실성 + 스마트머니 + 신뢰도점수) ✅ 2026-05-18
+- [x] **BE**: API 응답 `lastUpdated / dataStatus / nextUpdate` 필드 추가 (RaceResponse.java) ✅ 2026-05-18
 
-### 🟡 Phase 2 진행 중
-- [ ] **ARCH**: `V3__phase2.sql` 생성 (11개 테이블 전면 재설계 구조 반영)
-- [ ] **ARCH**: 마사회 API 실데이터 테스트 (Dockerfile 완료 후 / 결측값·구버전 포맷)
-- [ ] **ML**: 모델 정확도 측정 (실데이터 수집 후 / Top-3 기준 판단)
-- [ ] **ML**: Monte Carlo 고도화 (QMC + Adaptive + 병렬처리 + 상관행렬 + 게이트브레이크 + 날씨불확실성 + 스마트머니 + 신뢰도점수)
-- [ ] **FE**: Counterfactual 인터랙티브 UI (Web Worker 기반)
-- [ ] **FE**: 동적 UI Phase 2 10종 구현
-- [ ] **FE**: 번들 최적화 14단계 (Brotli / WebM / ECharts / 폰트서브셋 / Lazy / WebWorker / 가상화 / SW캐싱 / CI모니터링 등)
-- [ ] **BE**: API 응답 `last_updated / data_status / next_update` 필드 추가
+### ✅ Phase 2 완료
+- [x] ML: Monte Carlo 고도화 (QMC + Adaptive + 게이트편향 + 날씨 + 스마트머니 + 신뢰도) ✅ 2026-05-18
+- [x] BE: API 응답 lastUpdated / dataStatus / nextUpdate 필드 추가 ✅ 2026-05-18
+- [x] ARCH: 마사회 API 실데이터 테스트 (품질점수 97.6 GOOD / 전국 1년치 수집) ✅ 2026-05-18
+- [x] ML: XGBoost 모델 학습 완료 (Top-1 83% / Top-3 89% — 실운영 기준 80% 초과) ✅ 2026-05-18
 
-### 🟢 낮음
-- [ ] **BE**: GPT-4o-mini 프롬프트 초안 (금요일용 / 월요일용)
+---
+
+## 🗂️ 전체 남은 작업 우선순위 (Phase 2 ~ Phase 4)
+
+### 🔴 P1 — 즉시 (ML 정확도 핵심 / 임팩트 큼 / 빠름)
+
+| # | 작업 | 담당 | 근거 |
+|---|------|------|------|
+| 1 | **2024년 데이터 추가 수집** (bulk_collect.py START_MONTH=2024-01) | ML/ARCH | 2년치 재학습 시 2·3위 정확도 개선 직결 |
+| 2 | **LightGBM 학습 + XGBoost 앙상블** (두 모델 평균 예측) | ML | POST /ml/train?model_type=lgbm → 앙상블 코드 추가 |
+| 3 | **라이벌 직접 대결 피처** (rival_records 테이블 — 4차 회의 확정) | ML | A vs B 직접 전적 → feature_engineering.py 추가 |
+| 4 | **주행 스타일 피처** (horse_running_style 테이블 — 4차 회의 확정) | ML | 선행/추입/중간 스타일 → feature_engineering.py 추가 |
+
+### 🟡 P2 — Phase 2 완성 (FE 핵심 / 4차 회의 확정)
+
+| # | 작업 | 담당 | 근거 |
+|---|------|------|------|
+| 5 | **Counterfactual 인터랙티브 UI** (Web Worker 필수 — 4차 회의 확정) | FE | Monte Carlo 고도화의 FE 연동 |
+| 6 | **동적 UI Phase 2 10종** (4차 회의: Phase 2 추가 10종) | FE | 경주 시뮬레이션 미니 애니메이션 등 |
+| 7 | **번들 최적화 14단계** (4차 회의 확정 — Brotli/WebM/ECharts/폰트서브셋/Lazy/WebWorker/가상화/SW캐싱/CI모니터링) | FE | 실운영 성능 기준 |
+
+### 🟠 P3 — Phase 2~3 경계 (BE/DESIGN)
+
+| # | 작업 | 담당 | 근거 |
+|---|------|------|------|
+| 8 | **GPT-4o-mini 프롬프트 초안** (금요일 사전 / 월요일 결과 — 1차 회의 확정) | BE | AI 해설 실제 생성에 필요 |
+| 9 | **Figma 컬러 팔레트 + 디자인 토큰 초안** (2차 회의 확정) | DESIGN | FE 동적 UI 구현 선행 조건 |
+| 10 | **개인정보보호법 준수 체계 설계** (약관/처리방침/동의 — Phase 2~3 안건) | BE | 실운영 전환 법적 요건 |
+| 11 | **점검 모드 페이지 + 월요일 배너 + 푸시 알림** (화요일 정기 점검일 대비) | FE | 배포 운영 기반 |
+
+### 🟢 P4 — Phase 3 (AI 해설 고도화 / Monte Carlo 심화)
+
+| # | 작업 | 담당 | 근거 |
+|---|------|------|------|
+| 12 | **Bayesian MC 업데이트** (Sequential Race Dynamics / Copula / 앙상블 — 4차 회의 확정) | ML | Monte Carlo Phase 3 심화 |
+| 13 | **AI 해설 고도화** (GPT 품질 검증 / 사행성 필터 강화) | ML/BE | 실운영 해설 품질 |
+| 14 | **동적 UI Phase 3 5종** (4차 회의 확정) | FE | 완성도 향상 |
+| 15 | **Freemium 수익화 모델 설계** (Phase 3~4 안건 — 4차 회의 이관) | PM | 실운영 전환 전 결정 |
+
+### ⚪ P5 — Phase 4 (배포 / 문서화)
+
+| # | 작업 | 담당 | 근거 |
+|---|------|------|------|
+| 16 | **AWS 배포** (EC2 3서버 + ALB + CloudFront — 4차 회의 확정) | ARCH | 화요일 02:00~06:00 정기 점검일 |
+| 17 | **부하 테스트** (동시 사용자 100명, p95 500ms 목표) | ARCH | 실운영 품질 기준 |
+| 18 | **README + 포트폴리오 문서화** | NOTION | Phase 4 산출물 |
+| 19 | **마사회 API 상업적 이용 신청** (80% 달성 확인 후 진행 — 4차 회의 리스크 수용) | PM | 실운영 전환 법적 요건 |
+
+### 🟢 낮음 (기존)
 - [ ] **DESIGN**: Figma 컬러 팔레트 + 디자인 토큰 초안 업로드
-- [ ] **BE**: 개인정보보호법 준수 체계 설계 (약관 / 처리방침 / 동의)
-- [ ] **FE**: 점검 모드 페이지 + 월요일 배너 + 푸시 알림
 
 ---
 
@@ -168,14 +241,87 @@
 
 ---
 
-## 🔜 다음 회의 안건 (5차 회의)
+### [날짜: 2026-05-15] 5차 작업 세션 (Phase 2 첫 번째 작업일)
+- **참석**: 창현님
+
+#### 완료 작업 목록
+
+| 구분 | 작업 | 파일 경로 |
+|------|------|---------|
+| ML | ml-server Dockerfile A to Z 직접 작성 | `racepulse/ml-server/Dockerfile` |
+| ML | requirements.txt 작성 (26개 패키지) | `racepulse/ml-server/requirements.txt` |
+| ML | .dockerignore 작성 | `racepulse/ml-server/.dockerignore` |
+| ARCH | docker-compose.yml ml-server build 연결 | `racepulse/docker-compose.yml` |
+| BE | ErrorCode.java 직접 작성 (10개 에러 코드) | `global/exception/ErrorCode.java` |
+| BE | BusinessException.java 직접 작성 | `global/exception/BusinessException.java` |
+| BE | GlobalExceptionHandler.java 직접 작성 | `global/exception/GlobalExceptionHandler.java` |
+| BE | ApiResponse.java error() 메서드 추가 | `global/response/ApiResponse.java` |
+| FE | NotFoundPage.tsx (404) | `src/pages/error/NotFoundPage.tsx` |
+| FE | UnauthorizedPage.tsx (401/403) | `src/pages/error/UnauthorizedPage.tsx` |
+| FE | ServerErrorPage.tsx (500) | `src/pages/error/ServerErrorPage.tsx` |
+| FE | Toast.tsx 컴포넌트 | `src/components/Toast.tsx` |
+| FE | App.tsx 에러 라우트 등록 | `src/App.tsx` |
+| ARCH | V6__phase2_ml_race_entries.sql (11개 테이블) | `db/migration/V6__phase2_ml_race_entries.sql` |
+
+#### 특이사항
+- 프롬프트 01~20 전체 실행 완료 확인
+- Dockerfile은 창현님이 직접 A to Z 작성 (학습 목적)
+- BE 예외처리 3종도 창현님이 직접 작성
+- V6 명명 이유: V3가 이미 `create_push_tables`로 사용 중이었음
+
+#### 커밋 내역
+```
+dockerfile, dockerignore, requirements 생성 및 추가작성
+feat: BE 전역 예외처리 구현 (ErrorCode / BusinessException / GlobalExceptionHandler)
+feat: FE 에러 페이지 3종 및 Toast 컴포넌트 추가
+feat: V6 Phase 2 DB 마이그레이션 — ML 피처스토어 및 경주 출전 테이블 11개 추가
+chore: docs 폴더 gitignore 추가
+```
+
+---
+
+### [날짜: 2026-05-18] 6차 작업 세션 (Phase 2 두 번째 작업일)
+- **참석**: 창현님
+
+#### 완료 작업 목록
+
+| 구분 | 작업 | 파일 경로 |
+|------|------|---------|
+| ML | Monte Carlo 고도화 — QMC(Sobol) + Antithetic Variates | `ml-server/app/services/monte_carlo.py` |
+| ML | Monte Carlo 고도화 — Adaptive 수렴 (CI ±0.5%, 10k~100k) | `ml-server/app/services/monte_carlo.py` |
+| ML | Monte Carlo 고도화 — Cholesky 게이트 상관행렬 | `ml-server/app/services/monte_carlo.py` |
+| ML | Monte Carlo 고도화 — 게이트 브레이크 편향 | `ml-server/app/services/monte_carlo.py` |
+| ML | Monte Carlo 고도화 — 날씨 불확실성 | `ml-server/app/services/monte_carlo.py` |
+| ML | Monte Carlo 고도화 — 스마트머니 탐지 | `ml-server/app/services/monte_carlo.py` |
+| ML | Monte Carlo 고도화 — 신뢰도 점수(0~100) | `ml-server/app/services/monte_carlo.py` |
+| ML | 신규 테스트 5개 추가 | `ml-server/tests/test_monte_carlo.py` |
+| BE | RaceResponse.java — lastUpdated / dataStatus / nextUpdate 필드 추가 | `domain/race/dto/RaceResponse.java` |
+
+#### 특이사항
+- Monte Carlo 테스트: 기존 16개 + 신규 5개 = **21개 통과** (4.04s)
+  - 프롬프트 예상치(23개)와 다른 이유: 기존 파일에 테스트가 16개였음 (18개 아님)
+- BE 컴파일: `./gradlew compileJava` → **BUILD SUCCESSFUL**
+- ML 브랜치: `feat/phase2-ml-monte-carlo`
+- BE 브랜치: `feat/phase2-be-api-fields`
+- scipy fallback 구현: scipy 미설치 시 numpy로 자동 전환 (graceful degradation)
+- odds_history 테이블 없을 때도 안전하게 동작 (`to_regclass`로 존재 여부 확인)
+
+#### 커밋 내역
+```
+feat: [prompt-21] Monte Carlo 고도화 (QMC + Adaptive + 병렬처리 + 8종)
+feat: [prompt-22] BE 경주 API 응답에 lastUpdated/dataStatus/nextUpdate 필드 추가
+```
+
+---
+
+## 🔜 다음 회의 안건 (6차 회의)
 
 | 우선순위 | 안건 | 담당 |
 |----------|------|------|
-| 🔴 | Dockerfile 완료 확인 → 실데이터 수집 시작 | 창현님 + ARCH |
+| 🔴 | ARCH: 마사회 API 실데이터 테스트 결과 공유 | ARCH |
 | 🔴 | ML 모델 정확도 측정 결과 공유 (60%/70% 기준 판단) | ML |
-| 🔴 | BE 예외처리 구현 완료 확인 | BE |
-| 🟡 | V3__phase2.sql 생성 완료 확인 | ARCH |
-| 🟡 | Phase 2 프롬프트 진행 현황 점검 | 팀 전체 |
+| 🟡 | Phase 2 동적 UI 10종 진행 현황 | FE |
+| 🟡 | Monte Carlo 고도화 진행 현황 | ML |
+| 🟡 | 번들 최적화 착수 여부 | FE |
 | 🟡 | 개인정보보호법 준수 체계 설계 | BE + DESIGN |
 | 🟢 | Freemium 수익화 모델 세부 설계 | PM |

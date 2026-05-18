@@ -155,6 +155,104 @@ class PredictorService:
         )
         return results
 
+    async def predict_race_ensemble(self, race_id: int) -> list[dict[str, Any]]:
+        """XGBoost + LightGBM 앙상블 예측을 수행합니다.
+
+        두 모델의 점수를 각각 0~1로 정규화한 뒤 평균을 내어
+        단일 모델보다 안정적인 예측을 제공합니다.
+
+        앙상블(Ensemble)이란?
+          여러 모델의 예측을 합쳐 더 정확하고 안정적인 결과를 내는 기법입니다.
+          한 모델이 틀려도 다른 모델이 보정해주는 효과가 있습니다.
+        """
+        import os
+
+        # 1. 피처 로드 (두 모델 공통으로 사용)
+        features_stmt = (
+            select(MLFeatureStore)
+            .where(MLFeatureStore.race_id == race_id)
+            .order_by(MLFeatureStore.race_entry_id)
+        )
+        feature_records = list((await self.db.scalars(features_stmt)).all())
+        if not feature_records:
+            raise ValueError(f"race_id={race_id}의 피처가 없습니다.")
+
+        rows = [{col: rec.features.get(col) for col in FEATURE_COLUMNS} for rec in feature_records]
+        X = pd.DataFrame(rows, columns=FEATURE_COLUMNS).fillna(0.0)
+
+        all_scores = []
+
+        # 2. 각 모델 점수 계산
+        for name in ("xgboost", "lgbm"):
+            active = await self.manager.get_active_model(name)
+            model_file = active.model_path if active else f"{name}_v1.0"
+            model_file_name = os.path.basename(model_file).replace(".pkl", "")
+            try:
+                model, scaler = self.trainer.load_model(model_file_name)
+            except FileNotFoundError:
+                logger.warning("[앙상블] %s 모델 없음 — 건너뜀", name)
+                continue
+
+            X_scaled = scaler.transform(X) if scaler else X.values
+            raw_scores = model.predict(X_scaled).astype(float)
+
+            # Min-Max 정규화: 두 모델의 점수 척도가 달라 그대로 더하면 안 됩니다.
+            # 0~1 범위로 맞춘 뒤 평균해야 공정한 앙상블이 됩니다.
+            score_min = raw_scores.min()
+            score_max = raw_scores.max()
+            if score_max > score_min:
+                normalized = (raw_scores - score_min) / (score_max - score_min)
+            else:
+                normalized = np.ones_like(raw_scores) / len(raw_scores)
+
+            all_scores.append(normalized)
+
+        if not all_scores:
+            raise RuntimeError("앙상블할 모델이 없습니다. POST /ml/train 으로 먼저 학습하세요.")
+
+        # 3. 정규화된 점수 평균
+        ensemble_scores = np.mean(all_scores, axis=0)
+
+        # 4. 착순 예측 및 저장
+        rank_order = np.argsort(ensemble_scores)[::-1]
+        predicted_ranks = np.empty(len(ensemble_scores), dtype=int)
+        for rank_pos, idx in enumerate(rank_order, start=1):
+            predicted_ranks[idx] = rank_pos
+
+        await self.db.execute(
+            delete(Prediction).where(Prediction.race_id == race_id)
+        )
+
+        probs = _softmax(ensemble_scores)
+        results = []
+
+        for i, rec in enumerate(feature_records):
+            pred_rank = int(predicted_ranks[i])
+            win_prob  = float(probs[i])
+            top3_mask = (predicted_ranks <= 3)
+            place_prob = float(probs[top3_mask].sum()) if top3_mask[i] else float(probs[i])
+
+            self.db.add(Prediction(
+                race_id        = race_id,
+                race_entry_id  = rec.race_entry_id,
+                model_name     = "ensemble",
+                predicted_rank = pred_rank,
+                win_prob       = Decimal(str(round(win_prob, 5))),
+                place_prob     = Decimal(str(round(min(place_prob, 1.0), 5))),
+                raw_score      = Decimal(str(round(float(ensemble_scores[i]), 6))),
+                model_version  = "v1.0",
+            ))
+            results.append({
+                "race_entry_id":  rec.race_entry_id,
+                "predicted_rank": pred_rank,
+                "win_prob":       round(win_prob * 100, 2),
+                "raw_score":      round(float(ensemble_scores[i]), 4),
+            })
+
+        await self.db.commit()
+        logger.info("[앙상블 예측] race_id=%d 완료. %d마리 예측", race_id, len(results))
+        return results
+
     async def get_prediction_result(self, race_id: int) -> list[dict[str, Any]]:
         """race_id의 예측 결과를 조회합니다."""
         stmt = (
