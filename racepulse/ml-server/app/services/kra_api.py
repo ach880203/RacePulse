@@ -123,15 +123,32 @@ class KRAApiService:
     def _normalize_items(payload: dict[str, Any]) -> list[dict[str, Any]]:
         # 공공데이터 응답은 item이 "배열일 수도 있고 객체 하나일 수도" 있어서
         # 항상 list[dict] 형태로 통일해두면 이후 저장 로직이 훨씬 단순해집니다.
-        items = payload.get("response", {}).get("body", {}).get("items", {}).get("item")
+        #
+        # 주의: 결과가 없을 때 KRA API는 items를 {} 대신 "" (빈 문자열)로 내려보내는 경우가 있습니다.
+        # 이 경우 "".get("item") 을 호출하면 AttributeError가 발생하므로
+        # items_container 가 dict 인지 먼저 확인합니다.
+        body = payload.get("response", {}).get("body", {})
+        items_container = body.get("items")
+
+        # items_container 가 dict 가 아니면 (None, 빈 문자열, 기타) → 데이터 없음
+        if not isinstance(items_container, dict):
+            return []
+
+        items = items_container.get("item")
 
         if items is None:
             return []
 
-        if isinstance(items, list):
-            return items
+        # 단건 응답(dict 1개) → 리스트로 감쌉니다.
+        if isinstance(items, dict):
+            return [items]
 
-        return [items]
+        # 다건 응답(list) → dict 인 항목만 추려서 반환합니다.
+        if isinstance(items, list):
+            return [i for i in items if isinstance(i, dict)]
+
+        # 그 외 예상치 못한 타입 → 빈 리스트로 안전하게 처리합니다.
+        return []
 
     async def fetch_race_schedule(
         self,

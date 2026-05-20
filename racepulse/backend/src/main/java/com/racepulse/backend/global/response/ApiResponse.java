@@ -1,6 +1,7 @@
 package com.racepulse.backend.global.response;
 
 // @AllArgsConstructor = 모든 필드를 받는 생성자를 Lombok이 자동으로 만들어줍니다.
+import com.racepulse.backend.global.exception.ErrorCode;
 import lombok.AllArgsConstructor;
 // @Builder = builder() 문법으로 읽기 쉬운 객체 생성을 돕습니다.
 import lombok.Builder;
@@ -38,6 +39,14 @@ public class ApiResponse<T> {
                 .success(true)
                 .data(data)
                 .message(message)
+                .build();
+    }
+
+    public static <T> ApiResponse<T> error(ErrorCode errorCode) {
+        return ApiResponse.<T>builder()
+                .success(false)
+                .data(null)
+                .message(errorCode.getMessage())
                 .build();
     }
 }

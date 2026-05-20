@@ -1,0 +1,14 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# 학습된 ML 모델 파일 (용량이 크고 재학습으로 재생성 가능)
+models/*.pkl
+models/*.joblib
+
+# 로그/임시 파일
+scripts/collect_log.txt
+scripts/collect_stdout.txt
+scripts/collect_stderr.txt

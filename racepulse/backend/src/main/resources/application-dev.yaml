@@ -40,9 +40,11 @@ spring:
       client:
         registration:
           kakao:
-            # ${변수명:기본값} 형식 = 환경변수가 없으면 기본값을 사용합니다.
-            client-id: ${KAKAO_CLIENT_ID:a666918db5df756834eed7cf4130cbfd}
-            client-secret: ${KAKAO_CLIENT_SECRET:A6Y2pEzKe5MZB6ZfCAKQkNBDbVeTJLCc}
+            # 코드 리뷰 #5: 실제 API 키를 기본값으로 노출하면 git에 노출됩니다.
+            # 로컬 개발용 키는 .env.local (gitignore) 또는 환경변수로 설정하세요.
+            # 예: export KAKAO_CLIENT_ID=your_actual_id
+            client-id: ${KAKAO_CLIENT_ID}
+            client-secret: ${KAKAO_CLIENT_SECRET}
             redirect-uri: http://localhost:8080/api/v1/auth/kakao/callback
             authorization-grant-type: authorization_code
             scope: profile_nickname, account_email
@@ -77,9 +79,10 @@ springdoc:
 #   공개키(public-key)는 브라우저에 전달하고, 비밀키(private-key)는 서버에만 보관합니다.
 # 최초 1회 VapidKeyGenerator를 실행해서 키를 생성하고 .env에 저장하세요.
 vapid:
-  # 개발용 VAPID 키 (VapidKeyGenerator.java로 생성한 키)
-  public-key: ${VAPID_PUBLIC_KEY:BKtE7pql52uBkrXcex6s_6u94_B0bCW2qze5nuSZ8jT3mt5HoO4AeYIQEoX1DfgxkasbuR3_iW9N2NRNZkdZWHo}
-  private-key: ${VAPID_PRIVATE_KEY:ue2NaCOm9c14fEQIL5uPI1_euhMfEZBUGIgZmZVdeuU}
+  # VAPID 키 — VapidKeyGenerator.java 를 한 번 실행해서 생성한 뒤 환경변수에 저장하세요.
+  # 비밀키(private-key)는 절대 코드에 하드코딩하지 마세요.
+  public-key: ${VAPID_PUBLIC_KEY}
+  private-key: ${VAPID_PRIVATE_KEY}
   subject: mailto:admin@racepulse.com
 
 # 로그 설정

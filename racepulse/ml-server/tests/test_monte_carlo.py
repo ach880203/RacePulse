@@ -19,6 +19,7 @@
 # =============================================================================
 
 import pytest
+import pytest_asyncio
 import numpy as np
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -289,3 +290,73 @@ class TestRunSimulationEdgeCases:
         # 말1(인덱스 0)의 expected_rank가 가장 낮아야 함
         assert ranks[0] < ranks[1]
         assert ranks[0] < ranks[2]
+
+
+# =============================================================================
+# 섹션 4: 고도화 반환 필드 검증
+# =============================================================================
+# 프롬프트 21에서 추가된 QMC/적응형 수렴/신뢰도/게이트/스마트 머니 필드는
+# API 응답을 보는 프론트엔드가 바로 사용할 값입니다.
+# 그래서 정확한 확률값 하나를 고정하기보다 타입과 허용 범위를 먼저 검증합니다.
+# =============================================================================
+
+@pytest_asyncio.fixture
+async def advanced_result():
+    """고도화 필드 테스트에서 함께 쓰는 시뮬레이션 결과입니다."""
+    svc = MonteCarloService(db=AsyncMock())
+    svc.save_simulation_result = AsyncMock(return_value=None)
+    svc._load_prediction_rows = AsyncMock(
+        return_value=[
+            {
+                "horse_id": 1,
+                "horse_name": "테스트말1",
+                "win_prob": 0.5,
+                "odds_win": 3.0,
+                "gate_no": 1,
+                "weather": "CLEAR",
+                "opening_odds": 5.0,
+                "final_odds": 4.0,
+            },
+            {
+                "horse_id": 2,
+                "horse_name": "테스트말2",
+                "win_prob": 0.3,
+                "odds_win": 8.0,
+                "gate_no": 6,
+                "weather": "CLEAR",
+                "opening_odds": None,
+                "final_odds": None,
+            },
+            {
+                "horse_id": 3,
+                "horse_name": "테스트말3",
+                "win_prob": 0.2,
+                "odds_win": 15.0,
+                "gate_no": 12,
+                "weather": "CLEAR",
+                "opening_odds": None,
+                "final_odds": None,
+            },
+        ]
+    )
+    return await svc.run_simulation(race_id=1, n_simulations=10_000)
+
+
+def test_converged_is_bool(advanced_result):
+    assert isinstance(advanced_result["converged"], bool)
+
+
+def test_confidence_score_range(advanced_result):
+    assert 0 <= advanced_result["confidence_score"] <= 100
+
+
+def test_n_simulations_range(advanced_result):
+    assert 10_000 <= advanced_result["n_simulations"] <= 100_000
+
+
+def test_smart_money_detected_is_list(advanced_result):
+    assert isinstance(advanced_result["smart_money_detected"], list)
+
+
+def test_gate_bias_applied_is_bool(advanced_result):
+    assert isinstance(advanced_result["gate_bias_applied"], bool)

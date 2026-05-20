@@ -341,7 +341,7 @@ BE: 인증 + 유저 + 경주데이터 저장/조회 → Spring Boot
 - [x] **ARCH**: DB 테이블 목록 확정 → ✅ 총 43개 / Phase별 분리 (Phase0 15개 / Phase1 12개 / Phase2 11개 / Phase3 5개)
 - [x] **ARCH**: DB 스키마 상세 작성 완료 → V1__phase0.sql (컬럼/인덱스/ENUM/트리거 포함)
 - [x] **ARCH**: FastAPI APScheduler + Redis 수집 파이프라인 설계 → ✅ 16개 스케줄 + Rate Limit + 체크포인트 + 결측값 추적 구현 완료
-- [ ] **창현님**: ml-server Dockerfile 직접 작성 (회의 후 직접 경험)
+- [ ] **창현님**: ml-server Dockerfile 직접 작성 → Phase 2 첫 번째 태스크
 - [ ] **ARCH**: 실제 마사회 API 호출 테스트 → 결측값 비율 + 2019년 구버전 포맷 확인 (Dockerfile 완료 후 진행)
 - [x] **BE**: Spring Boot API 엔드포인트 확정 → ✅ 39개 / /api/v1/ 버전 포함 (34→36 카카오 추가 → 38 알림설정 추가 → 39 refresh 추가)
 - [x] **BE**: 인증 보안 구조 확정 → ✅ JWT + Rotation + Family 감지 + BCrypt + Rate Limiting
@@ -351,7 +351,7 @@ BE: 인증 + 유저 + 경주데이터 저장/조회 → Spring Boot
 - [x] **창현님**: 카카오 개발자 센터 앱 등록 + REST API 키 발급 완료
 - [ ] **BE**: API 응답에 last_updated / data_status / next_update 필드 포함 설계
 - [x] **FE**: 페이지 구조 (라우팅) 초안 작성 완료 → 25개 라우트
-- [ ] **FE**: 데이터 상태 UI 컴포넌트 설계 (준비중 / 업데이트 예정 / 데이터 수집 중 / 기수변경 뱃지)
+- [x] **FE**: 데이터 상태 UI 컴포넌트 설계 (준비중 / 업데이트 예정 / 데이터 수집 중 / 기수변경 뱃지) → DataStatusBadge 구현 + 테스트 완료
 - [x] **PM**: Phase 0 상세 일정 수립 완료
 - [x] **팀 전체**: 안건 1 확정 → ✅ 선택지 B (Spring Boot 메인, FastAPI 마이크로서비스)
 - [x] **팀 전체**: 안건 2 확정 → ✅ ML 기반 직행 (XGBoost/LightGBM, 2019년~데이터 활용)
@@ -361,7 +361,7 @@ BE: 인증 + 유저 + 경주데이터 저장/조회 → Spring Boot
 - [x] **팀 전체**: 인트로 영상 방향 변경 → ✅ 시네마틱 실사 / 다크 네이비 + 골드
 - [x] **팀 전체**: DB 선택 → ✅ PostgreSQL (윈도우 함수/JSONB/ML 분석 쿼리 이점)
 - [x] **팀 전체**: DB 테이블 목록 → ✅ 즉시 25개 확정 (24→25, notification_settings 분리 추가 / Phase 2 이후 4개 별도)
-- [ ] **FE**: 인트로 영상 제작 (Veo 3.1 시네마틱 실사 스타일)
+- [x] **FE**: 인트로 영상 제작 → ✅ Veo 3.1 제작 완료 (영상2.mp4 최종 확정)
 - [x] **FE**: TypeScript 기반 라우팅 구조 확정 → ✅ 25개 라우트 (목록 확정, /intro는 별도 라우트 아닌 홈의 조건부 렌더링으로 처리)
 - [ ] **BE**: GPT-4o-mini 프롬프트 초안 작성 (금요일용 / 월요일용)
 - [ ] **BE**: ErrorCode.java + BusinessException.java + GlobalExceptionHandler.java 구현 (API 명세서 작성 선행 조건)
@@ -1197,3 +1197,391 @@ DATA_NOT_READY, COLLECTION_IN_PROGRESS
   - 터미널 출력에서 한글 깨짐이 확인되므로 실제 파일 UTF-8 저장 상태 확인
   - Notion 자동 동기화 시 한글이 깨지지 않는지 점검
   - 회의록 원본과 Notion 반영본의 인코딩/표 형식 유지 여부 확인
+
+---
+
+## ✅ Phase 1 완료 현황 (2026-05-14 기준)
+
+### 테스트 전략 구현 완료 (6단계)
+
+| 단계 | 내용 | 결과 |
+|------|------|------|
+| 1단계 | BE 단위 테스트 — `JwtTokenProviderTest` | ✅ 10개 통과 |
+| 2단계 | ML 단위 테스트 — `test_feature_engineering.py` | ✅ 22개 통과 |
+| 3단계 | ML 단위 테스트 — `test_monte_carlo.py` | ✅ 18개 통과 |
+| 4단계 | BE 컨트롤러 테스트 — `AuthControllerTest` | ✅ 11개 통과 |
+| 5단계 | FE 컴포넌트 테스트 — `DataStatusBadge.test.tsx` | ✅ 9개 통과 |
+| 6단계 | GitHub Actions CI — 3개 병렬 job (BE/ML/FE) | ✅ 전체 통과 |
+
+**주요 구현 사항**
+- `JwtTokenProvider.validateToken()` — null/blank 가드 + `IllegalArgumentException` 캐치 버그픽스
+- `AuthControllerTest` — `@WebMvcTest` 대신 `MockMvcBuilders.standaloneSetup()` 채택 (Spring Security 복잡도 회피)
+- ML pytest — `AsyncMock` 패턴으로 DB 의존성 제거, 수학적 불변식(확률 합계 = 100%) 검증
+- Vitest — `css: false` 설정으로 Tailwind v4 + jsdom 충돌 해결
+- CI — gradlew 실행권한 `git update-index --chmod=+x`, npm ci → npm install 변경
+
+### GIT 작업 완료
+
+- [x] develop 브랜치 생성 및 운영 시작
+- [x] `.github/workflows/test.yml` CI 파이프라인 구성 (develop push + main PR 트리거)
+- [x] main 브랜치에 `test.yml` 추가 (PR CI 정상 동작 보장)
+- [x] `.claude/` 폴더 `.gitignore` 추가
+- [x] PR #3 생성 (develop → main, Phase 1 테스트 전략 구현)
+
+### 미완료 — Phase 2 시작 전 처리 필요
+
+| 항목 | 담당 | 우선순위 |
+|------|------|----------|
+| ml-server Dockerfile 작성 | 창현님 직접 | 🔴 높음 (마사회 API 테스트 전제조건) |
+| `ErrorCode.java` + `BusinessException.java` + `GlobalExceptionHandler.java` | BE | 🔴 높음 (API 명세 전제조건) |
+| API 응답에 `last_updated / data_status / next_update` 필드 추가 | BE | 🟡 중간 |
+| 마사회 API 실데이터 테스트 (결측값 비율 / 구버전 포맷 확인) | ARCH | 🟡 중간 (Dockerfile 완료 후) |
+| ML 모델 정확도 측정 (Top-3 60%/70% 기준 판단) | ML | 🟡 중간 (실데이터 수집 후) |
+| GPT-4o-mini 프롬프트 초안 (금요일용 / 월요일용) | BE | 🟢 낮음 |
+| ~~인트로 영상 제작~~ | FE | ✅ 완료 (Veo 3.1 제작 = 영상2.mp4 확정) |
+
+---
+
+---
+
+### [날짜: 2026-05-14] 4차 회의 (Phase 2 킥오프)
+- **참석**: BE, FE, ARCH, PM, DESIGN, GIT, NOTION, ML, WR, 창현님
+
+---
+
+#### ✅ 프로젝트 방향 재확정 — 실운영 가능성 열어두기
+
+- 예측 정확도 80% 이상 달성 시 실제 운영 진행 예정
+- **포트폴리오 수준이 아닌 실운영 최고 품질 기준으로 모든 설계 결정**
+- 마사회 API 상업적 이용 허가 → 80% 달성 + 운영 결정 후 진행 (사업자/도메인 선행 필요)
+- OpenAI 비용 초과 시 서비스 중단 방식 폐기 → Freemium + 광고 수익화 (Phase 3~4 안건)
+
+---
+
+#### ✅ Dockerfile 이관 결정
+
+- ml-server Dockerfile 작성 → **Phase 2 첫 번째 태스크로 이관** (회의 후 창현님 직접 작성)
+- 이후 순서: Dockerfile → 실데이터 수집 → ML 모델 정확도 측정 → Phase 2 진행 기준 판단
+
+---
+
+#### ✅ BE 예외처리 구조 확정
+
+- **HTTP 상태 코드**: A방식 (에러코드별 4xx/5xx 분리)
+- **에러 표시 방식**:
+  - 에러 페이지 3종: `404` / `401·403` / `500`
+  - 페이지 내 API 실패 → 토스트 메시지
+  - 401 → `/login` 자동 리다이렉트
+- **에러코드 추가**: 개발 중 필요 시 수시 추가
+- **에러 응답 포맷**: `{ "success": false, "data": null, "message": "ERROR_CODE" }`
+
+---
+
+#### ✅ Phase 2 DB — `ml_feature_store` 최종 구조
+
+```sql
+ml_feature_store (
+  id                  BIGSERIAL PRIMARY KEY,
+  race_entry_id       BIGINT    NOT NULL REFERENCES race_entries(id),
+  model_version_id    BIGINT    NOT NULL REFERENCES model_versions(id),
+  features            JSONB     NOT NULL,
+  win_score           FLOAT,
+  form_score          FLOAT,
+  jockey_win_rate     FLOAT,
+  odds_implied_prob   FLOAT,
+  data_quality_score  FLOAT,
+  computation_status  VARCHAR   DEFAULT 'PENDING'
+                      CHECK (computation_status IN ('PENDING','COMPLETED','FAILED')),
+  error_message       TEXT      NULL,
+  is_latest           BOOLEAN   DEFAULT true,
+  expires_at          TIMESTAMP,
+  computed_at         TIMESTAMP DEFAULT NOW(),
+  updated_at          TIMESTAMP DEFAULT NOW(),
+
+  UNIQUE (race_entry_id, model_version_id),
+  INDEX  (race_entry_id, is_latest),
+  GIN INDEX (features)
+)
+```
+
+---
+
+#### ✅ Phase 2 DB — 나머지 10개 테이블 최종 구조
+
+**`horse_breakdown_stats`**
+- stat_type VARCHAR CHECK ('DISTANCE','CONDITION','COURSE','WEIGHT')
+- meet_code, period_type CHECK ('ALL_TIME','1_YEAR','6_MONTH')
+- race_count, win_count, place_count, win_rate, place_rate
+- avg_finish_position, top3_rate, avg_odds
+- updated_at
+
+**`combination_stats`**
+- combination_type CHECK ('JOCKEY_HORSE','TRAINER_HORSE')
+- horse_id, partner_id, meet_code, period_type
+- race_count, win_count, place_count, win_rate, place_rate
+- avg_finish_position, top3_rate, avg_odds
+- streak_current, last_race_date
+- UNIQUE (combination_type, horse_id, partner_id, period_type, meet_code)
+
+**`participant_form_stats`**
+- participant_type CHECK ('JOCKEY','TRAINER')
+- participant_id, meet_code, period_days CHECK (30,60,90), reference_date
+- race_count, win_count, place_count, win_rate, place_rate
+- avg_finish_position, top3_rate
+- UNIQUE (participant_type, participant_id, period_days, reference_date, meet_code)
+
+**`horse_form_index`**
+- horse_id, form_score, prev_form_score
+- trend CHECK ('IMPROVING','STABLE','DECLINING')
+- volatility (폼 변동성 — Monte Carlo 신뢰구간 연동)
+- peak_form_score, races_included, weight_config JSONB
+- valid_until, calculated_at
+
+**`horse_running_style`**
+- horse_id, style CHECK ('LEADER','STALKER','CLOSER','PRESSER')
+- track_type CHECK ('TURF','DIRT','ALL')
+- distance_category CHECK ('SHORT','MIDDLE','LONG')
+- pace_preference CHECK ('FAST','SLOW','AVERAGE')
+- confidence_score, race_count
+- avg_early_position, avg_final_position
+- updated_at
+- UNIQUE (horse_id, track_type, distance_category)
+
+**`gate_bias_stats`**
+- meet_code, gate_no, distance, track_type CHECK ('TURF','DIRT')
+- period_type CHECK ('ALL_TIME','1_YEAR','6_MONTH')
+- weather_condition CHECK ('CLEAR','RAIN','ALL')
+- sample_count, win_rate, place_rate, bias_score
+- avg_finish_position, top3_rate
+- updated_at
+- UNIQUE (meet_code, gate_no, distance, track_type, weather_condition)
+
+**`feature_importance_log`**
+- model_version_id FK, feature_name
+- importance_score, previous_score, change_rate
+- importance_rank, feature_category CHECK ('HORSE','JOCKEY','RACE','WEATHER','COMBINATION')
+- shap_mean_abs (XGBoost/LightGBM SHAP value — 예측 설명력)
+- alert_triggered BOOLEAN DEFAULT false
+- recorded_at
+
+**`equipment_changes`**
+- horse_id FK, race_id FK
+- equipment_type CHECK ('BLINKER','HOOD','TONGUE_TIE','SHADOW_ROLL','OTHER')
+- change_type CHECK ('ADDED','REMOVED')
+- effect_observed CHECK ('POSITIVE','NEUTRAL','NEGATIVE','UNKNOWN') DEFAULT 'UNKNOWN'
+- notes TEXT NULL, changed_at
+
+**`rival_records`**
+- horse_id_1, horse_id_2, meet_code, distance
+- total_races, horse1_wins, horse2_wins
+- horse1_avg_position, horse2_avg_position
+- last_race_id FK, last_race_date
+- updated_at
+- CHECK (horse_id_1 < horse_id_2)
+- UNIQUE (horse_id_1, horse_id_2, meet_code, distance)
+
+**`horse_pedigree`**
+- horse_id UNIQUE FK
+- sire_id nullable FK, sire_name VARCHAR (외국마 대비 병행)
+- dam_id nullable FK, dam_name VARCHAR
+- bloodline_score FLOAT, bloodline_category VARCHAR
+- country_of_origin VARCHAR
+- created_at, updated_at
+
+---
+
+#### ✅ Monte Carlo 시뮬레이션 운영 기준 확정
+
+**Phase 2 적용:**
+- 기법: QMC(Sobol) + Antithetic Variates + Gaussian 상관행렬
+- 횟수: Adaptive (10k~100k 자동 조정, CI ±0.5% 이하 수렴 시 중단)
+- 병렬처리: Python multiprocessing 4코어
+- 게이트 브레이크 시뮬레이션 포함
+- 날씨 불확실성 전파 (예보 확률 기반 샘플링)
+- 스마트 머니 탐지 (배당률 30% 이상 급변 감지)
+- 시뮬레이션 신뢰도 점수 표시
+- Counterfactual 인터랙티브 UI (Web Worker 기반)
+- 결과 저장: Redis 캐싱 + 경주 종료 후 DB 아카이빙
+- 재계산 트리거: 출전표 확정 / 마체중·기수변경 수집 후 / 기수변경 즉시
+- 예측 없을 시: 배당률 기반 대체 시뮬레이션
+
+**Phase 3 적용:**
+- Bayesian 실시간 업데이트
+- Sequential Race Dynamics (경주 과정 단계별 시뮬레이션)
+- Copula 기반 상관관계 (Gumbel Copula)
+- 피로도/휴식 랜덤 모델링
+- 시뮬레이션 앙상블 (3개 모델 가중 평균)
+- Celery 분산처리
+
+**Phase 4 / 로드맵:**
+- 월별 캘리브레이션 자동화 (데이터 2~3개월 축적 필요)
+- 실시간 레이스 포지션 업데이트 (KRA 실시간 피드 확보 선행)
+
+**`monte_carlo_simulations` 테이블 (V3__phase2.sql 포함):**
+```sql
+monte_carlo_simulations (
+  id                   BIGSERIAL PRIMARY KEY,
+  race_id              BIGINT NOT NULL REFERENCES races(id),
+  race_entry_id        BIGINT NOT NULL REFERENCES race_entries(id),
+  simulation_version   INT NOT NULL DEFAULT 1,
+  technique            VARCHAR CHECK (technique IN ('STANDARD','QMC','ANTITHETIC','ADAPTIVE')),
+  iterations_actual    INT NOT NULL,
+  win_probability      FLOAT,
+  place_probability    FLOAT,
+  win_prob_ci_lower    FLOAT,
+  win_prob_ci_upper    FLOAT,
+  rank_distribution    JSONB,
+  scenario_breakdown   JSONB,
+  upset_probability    FLOAT,
+  competitiveness_idx  FLOAT,
+  winning_conditions   TEXT,
+  computation_ms       INT,
+  trigger_type         VARCHAR CHECK (trigger_type IN
+                       ('SCHEDULED','JOCKEY_CHANGE','WEIGHT_UPDATE','MANUAL')),
+  is_latest            BOOLEAN DEFAULT true,
+  computed_at          TIMESTAMP DEFAULT NOW(),
+  UNIQUE (race_entry_id, simulation_version),
+  INDEX (race_id, is_latest)
+)
+```
+
+---
+
+#### ✅ 디자인 시스템 확정
+
+**철학**: "Bloomberg Terminal meets Premium Sports Analytics" — 지성미 있는 생동감
+
+**컬러 팔레트:**
+- page-bg: #07091A / surface: #0D1227 / elevated: #131A36 / border: #1A2444
+- gold-primary: #D4A843 / gold-highlight: #F5C842 / gold-deep: #B8922E
+- 골드 글로우: box-shadow 0 0 24px rgba(212,168,67,0.35)
+- 데이터 팔레트: data-blue #3B82F6 / data-purple #8B5CF6 / data-teal #14B8A6 / data-amber #F59E0B
+
+**타이포그래피:**
+- Playfair Display → 브랜드/감성 (말 이름, 히어로)
+- Inter → 데이터/정밀 (수치, 본문)
+- JetBrains Mono → 기술 데이터 (확률, CI, 타임스탬프) ← 신규 추가
+- 수치: Data-XL(36px) / Data-L(24px) / Data-M(16px) / Data-S(13px)
+
+**애니메이션 토큰:**
+- duration: fast(150ms) / base(250ms) / slow(400ms) / slower(600ms) / hero(1200ms)
+- easing: snap / bounce / smooth
+
+**진행하면서 수정 가능 — 토큰 레벨 변경 자유, 컴포넌트 구조 변경은 DESIGN→FE 사전 공유**
+
+---
+
+#### ✅ 동적 UI 16종 우선순위 확정
+
+**Phase 2 필수 (10종)**: #1 컨디션 게이지 / #2 승률 바 스윕 / #6 게이트 슬라이드 인 / #7 레이스 시뮬레이션 / #8 스파크라인 / #12 정확도 원형 게이지 / #13 수집 카운트다운 / #14 경기 카운트다운 / #15 AI 해설 타이핑 / #16 로딩 말 달리기
+
+**Phase 3 (5종)**: #3 호버 상세 팝업 / #5 레이더 차트 / #9 착순 역순 공개 / #10 구간별 라인 차트 / #11 예측 vs 실제 게이지
+
+**통합 처리 (1종)**: #4 컨디션 색상 코딩 → #1 게이지에 포함
+
+---
+
+#### ✅ 인트로 영상 최종 확정
+
+- `영상2.mp4` = Veo 3.1로 직접 제작한 최종본 확정
+- 구현 완료 상태 유지 (canplaythrough + preload="auto" + 골드 프로그레스 바)
+
+---
+
+#### ✅ AWS 배포 환경 확정
+
+**서버 구조**: FE(Nginx) / BE(Spring Boot) / ML(FastAPI) 3서버 분리 + ALB + CloudFront CDN
+
+**인스턴스**: 최소 스펙 시작 → 실운영 결정 시 스케일업
+
+| 서버 | 개발 | 실운영 |
+|------|------|--------|
+| FE | t3.micro | t3.small |
+| BE | t3.small | t3.medium |
+| ML | t3.medium | t3.large |
+| RDS | db.t3.micro | db.t3.small |
+| Redis | cache.t3.micro | cache.t3.small |
+
+**도메인/SSL**: Route 53 + ACM (무료)
+
+**배포 방식**: ~~Blue-Green 무중단 폐기~~ → **매주 화요일 02:00~06:00 정기 점검일 배포**
+- 사전 공지: 월요일 22:00 푸시 알림 + 오후 배너
+- 점검 모드 페이지: 브랜드 톤 + 종료 카운트다운
+- Blue-Green 재검토: DAU 수천 이상 시점
+
+---
+
+#### ✅ GIT 브랜치 전략 + PR 기준 확정
+
+**브랜치 구조:**
+```
+main          Phase 완료 PR + 버전 태그 (v0.2.0 / v0.3.0 / v1.0.0)
+  ↑
+develop       기능 단위 PR (3~5 프롬프트 묶음)
+  ↑
+feat/*        프롬프트 단위 커밋
+hotfix/*      긴급 버그 (실운영 시)
+```
+
+**커밋 단위**: 프롬프트 1개 = 커밋 1개
+**커밋 메시지**: `feat: [prompt-N] 설명`
+**feat 브랜치 기준**: 논리적으로 묶이는 3~5개 프롬프트 = 브랜치 하나
+
+**main PR 체크리스트 (4개):**
+- [ ] CI 전체 통과 (BE/ML/FE 3개 job)
+- [ ] 신규 기능은 테스트 코드 포함
+- [ ] API 변경 시 NOTION 명세서 업데이트 확인
+- [ ] .env 시크릿 커밋 여부 확인
+
+*(점검일 배포 원칙은 실운영 전환 시점에 추가)*
+
+---
+
+#### ✅ 번들 최적화 전략 확정 (우선순위 순)
+
+| 순서 | 방법 | 효과 |
+|------|------|------|
+| 1 | Bundle 분석 (rollup-plugin-visualizer) | 원인 파악 |
+| 2 | Brotli 압축 (vite-plugin-compression) | -70~80% |
+| 3 | Resource Hints (preconnect/prefetch) | 체감 속도 즉시 개선 |
+| 4 | WebM 변환 (영상2.mp4 병행) | -2.6MB |
+| 5 | Font 서브셋 (한국어+Latin) | -700KB |
+| 6 | moment → dayjs 교체 확인 | -230KB |
+| 7 | recharts → Apache ECharts | -220KB |
+| 8 | manualChunks 전략 | 캐시 최적화 |
+| 9 | Lazy Loading (route 단위) | 초기 로드 분산 |
+| 10 | Web Worker (Monte Carlo Counterfactual) | UI 버벅임 방지 필수 |
+| 11 | 목록 가상화 (@tanstack/virtual) | 대규모 데이터 대응 |
+| 12 | Service Worker 캐싱 전략 (Workbox) | 재방문/오프라인 |
+| 13 | Bundle Size CI 모니터링 (size-limit) | 자동 감지 |
+| 14 | Intersection Observer | 하단 컴포넌트 지연 렌더링 |
+
+---
+
+#### ✅ 실운영 대비 추가 확정 사항
+
+| 항목 | 시점 | 담당 |
+|------|------|------|
+| 개인정보보호법 준수 (약관/처리방침/동의) | Phase 2~3 | BE + DESIGN |
+| OpenAI 비용 → Freemium + 광고 수익화 | Phase 3~4 안건 | PM |
+| 마사회 API 상업적 이용 허가 | 80% 달성 후 | 창현님 |
+| 장애 감지 + Slack 알림 | Phase 4 | ARCH |
+| DB 자동 백업 전략 | Phase 4 | ARCH |
+| AWS Secrets Manager 키 관리 | Phase 4 | GIT + ARCH |
+| 접근성(a11y) 기본 대응 | Phase 4 | FE |
+| 부하 테스트 (k6) | Phase 4 | ARCH + BE |
+| 무중단 배포 재검토 | DAU 수천 이상 시점 | ARCH |
+
+---
+
+## 🔜 다음 회의 안건 (5차 회의)
+
+| 우선순위 | 안건 | 담당 |
+|----------|------|------|
+| 🔴 | Dockerfile 작성 완료 확인 → 실데이터 수집 시작 | 창현님 + ARCH |
+| 🔴 | ML 모델 정확도 측정 결과 공유 (Top-3 60%/70% 기준) | ML |
+| 🔴 | BE 예외처리 구현 완료 확인 | BE |
+| 🟡 | V3__phase2.sql 생성 완료 확인 | ARCH |
+| 🟡 | Phase 2 프롬프트 진행 현황 점검 | 팀 전체 |
+| 🟡 | 개인정보보호법 준수 체계 설계 (약관/처리방침) | BE + DESIGN |
+| 🟢 | Freemium 수익화 모델 세부 설계 | PM |

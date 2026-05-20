@@ -18,10 +18,12 @@ import type { ApiResponse, PageResponse, Race, RaceListParams } from '../types/r
 import type { RaceEntry, RaceResult } from '../types/entry'
 import type { WeatherForecast } from '../types/weather'
 
-// ML 서버(FastAPI, 포트 8000)에 직접 요청하는 별도 클라이언트입니다.
-// Spring Boot(8080)와 FastAPI(8000)는 서버가 다르므로 baseURL을 분리합니다.
+// ML 서버(FastAPI)에 직접 요청하는 별도 클라이언트입니다.
+// 코드 리뷰 #4: localhost 하드코딩 제거 — Vite 환경변수로 분리합니다.
+// .env.development: VITE_ML_SERVER_URL=http://localhost:8000
+// .env.production:  VITE_ML_SERVER_URL=https://ml.racepulse.com
 const mlAxios = axios.create({
-  baseURL: 'http://localhost:8000',
+  baseURL: import.meta.env.VITE_ML_SERVER_URL ?? 'http://localhost:8000',
   timeout: 10_000,
 })
 

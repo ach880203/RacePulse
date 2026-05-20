@@ -1,35 +1,19 @@
 // =============================================================================
 // SparklineChart.tsx — 최근 경주 착순을 간단한 선 차트로 표시하는 컴포넌트
 // =============================================================================
-// Recharts란?
-//   React에서 차트를 쉽게 그리는 라이브러리입니다.
-//   ResponsiveContainer = 부모 크기에 맞게 자동으로 늘어나는 컨테이너
-//   LineChart          = 선 그래프 컴포넌트
-//   Line               = 실제 선을 그리는 컴포넌트
-//   YAxis의 reversed   = 착순은 1위가 가장 좋으므로 Y축을 뒤집습니다 (1이 맨 위)
+// ECharts core 버전을 쓰는 이유:
+//   전체 차트 라이브러리를 한 번에 넣지 않고 필요한 선 차트 기능만 빌드에 포함하기 위해서입니다.
+//   이 방식은 번들 크기를 줄이는 Tree Shaking에 유리합니다.
 // =============================================================================
 
-// Recharts 컴포넌트들
-import {
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  YAxis,
-} from 'recharts'
+import OptimizedEChart from './dynamic/OptimizedEChart' // 필요한 ECharts 기능만 등록한 공통 차트 컴포넌트입니다.
+import type { EChartsOption } from './dynamic/OptimizedEChart' // 차트 설정 객체 타입입니다.
 
 interface Props {
-  // data = [{ order: 1 }, { order: 3 }, ...] 형식의 착순 기록 배열
+  // data = [{ order: 1 }, { order: 3 }, ...] 형식의 착순 기록 배열입니다.
   data: { order: number }[]
-  // height = 차트 높이(픽셀), 기본값 64
+  // height = 차트 높이(픽셀), 기본값 64입니다.
   height?: number
-}
-
-function formatTooltipValue(value: number | string | readonly (number | string)[] | undefined) {
-  if (Array.isArray(value)) {
-    return value.join(', ')
-  }
-  return value ?? '-'
 }
 
 function SparklineChart({ data, height = 64 }: Props) {
@@ -41,40 +25,39 @@ function SparklineChart({ data, height = 64 }: Props) {
     )
   }
 
-  return (
-    // ResponsiveContainer = width="100%"로 설정하면 부모 컨테이너 너비를 꽉 채웁니다.
-    <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
-        {/* YAxis reversed = 착순이 낮을수록(1위) 위에 표시되도록 Y축을 뒤집습니다. */}
-        <YAxis
-          reversed
-          domain={[1, 'dataMax']}
-          hide  // 축 레이블은 숨깁니다. 스파크라인은 트렌드만 보여주면 충분합니다.
-        />
-        {/* Tooltip = 마우스를 올리면 해당 데이터 값을 보여주는 말풍선입니다. */}
-        <Tooltip
-          contentStyle={{
-            background: '#0d1628',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: '0.75rem',
-            color: '#fff',
-            fontSize: '0.75rem',
-          }}
-          formatter={(value) => [`${formatTooltipValue(value)}위`, '착순']}
-          labelFormatter={() => ''}
-        />
-        {/* Line = 실제 꺾은선을 그립니다. dataKey="order"는 데이터에서 읽을 필드 이름입니다. */}
-        <Line
-          type="monotone"
-          dataKey="order"
-          stroke="#f5c842"   // brand-gold-400 색상
-          strokeWidth={2}
-          dot={{ r: 3, fill: '#f5c842', strokeWidth: 0 }}
-          activeDot={{ r: 5, fill: '#f5c842' }}
-        />
-      </LineChart>
-    </ResponsiveContainer>
-  )
+  const option: EChartsOption = {
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params) => {
+        const firstParam = Array.isArray(params) ? params[0] : params
+        return `${firstParam.value}위`
+      },
+    },
+    grid: { left: 4, right: 4, top: 4, bottom: 4 },
+    xAxis: {
+      type: 'category',
+      data: data.map((_, index) => `${index + 1}`),
+      show: false,
+    },
+    yAxis: {
+      type: 'value',
+      inverse: true,
+      minInterval: 1,
+      show: false,
+    },
+    series: [
+      {
+        type: 'line',
+        data: data.map((item) => item.order),
+        smooth: true,
+        symbolSize: 5,
+        lineStyle: { color: 'var(--color-brand-gold-400)', width: 2 },
+        itemStyle: { color: 'var(--color-brand-gold-400)' },
+      },
+    ],
+  }
+
+  return <OptimizedEChart option={option} height={height} />
 }
 
 export default SparklineChart
