@@ -287,6 +287,54 @@
 
 ---
 
+### [날짜: 2026-05-15] 13차 작업 세션 (Phase 3 착수)
+- **참석**: 창현님
+
+#### 완료 작업
+
+| 구분 | 작업 | 결과 |
+|------|------|------|
+| ML | XGBoost v3.0 재학습 | Top-1 85.31% / Top-3 **98.85%** |
+| ML | LightGBM v3.0 재학습 | Top-1 91.86% / Top-3 **99.05%** |
+| WR | horse_racing_team_v3.md 생성 | v1·v2 규칙 전체 계승 |
+| NOTION | 노션 워크스페이스 전면 업데이트 | 메인/회의록/스프린트/디자인 4페이지 |
+
+#### 특이사항
+- v3.0 Top-1이 v2.0 대비 소폭 하락 — 데이터셋 재분할 영향 추정, Top-3는 유지
+- Bayesian 피처 적용 후 v3.1 재학습 검토 예정
+
+#### 커밋 내역
+```
+docs: Phase 3 시작 — horse_racing_team_v3.md 생성 (v1·v2 규칙 계승 + Phase 2 완료 선언)
+docs: v3.0 재학습 결과 기록 (XGBoost Top-3 98.85% / LightGBM Top-3 99.05%)
+```
+
+---
+
+### [날짜: 2026-05-15] 12차 작업 세션 (Phase 2 완료 선언)
+- **참석**: 창현님
+
+#### 완료 작업
+
+| 구분 | 작업 | 결과 |
+|------|------|------|
+| DESIGN | Figma 디자인 토큰 동기화 | RacePulse Design System 파일 생성 |
+| DESIGN | Variables 33개 업로드 | Color×16 / Spacing×8 / Radius×5 / Duration×4 |
+| DESIGN | Text Styles 11개 업로드 | Text×8 (Inter) / Mono×3 (JetBrains Mono) |
+| GIT | v2.0.0 태그 push | origin에 push 완료 |
+| GIT | develop 최신화 | PR #7·#8 반영 확인 |
+
+#### Phase 2 완료 조건 충족
+
+| 조건 | 상태 |
+|------|------|
+| ML Top-3 80% 이상 | ✅ XGBoost 99.85% / LightGBM 99.4% |
+| Figma 디자인 토큰 동기화 | ✅ 2026-05-15 완료 |
+| develop → main Phase PR | ✅ PR #8 Squash merge |
+| v2.0.0 태그 | ✅ push 완료 |
+
+---
+
 ### [날짜: 2026-05-15] Phase 2 완료 선언
 
 #### 완료 조건 충족 내역
