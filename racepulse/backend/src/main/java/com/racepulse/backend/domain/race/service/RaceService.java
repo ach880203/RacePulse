@@ -1,10 +1,13 @@
 package com.racepulse.backend.domain.race.service;
 
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +16,8 @@ import com.racepulse.backend.domain.race.entity.MeetCode;
 import com.racepulse.backend.domain.race.entity.Race;
 import com.racepulse.backend.domain.race.entity.RaceStatus;
 import com.racepulse.backend.domain.race.repository.RaceRepository;
+import com.racepulse.backend.global.exception.BusinessException;
+import com.racepulse.backend.global.exception.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
 
@@ -29,6 +34,9 @@ import lombok.RequiredArgsConstructor;
 public class RaceService {
 
     private final RaceRepository raceRepository;
+    // JdbcTemplate = JPA 엔티티 없이 SQL을 직접 실행해 결과를 Map 목록으로 받습니다.
+    // race_entries/race_results 테이블은 ML 서버가 관리하므로 JPA 엔티티 없이 조회합니다.
+    private final JdbcTemplate jdbcTemplate;
 
     // 전달받은 필터 조건으로 경주 목록을 페이지 단위로 조회합니다.
     public Page<RaceResponse> getRaces(MeetCode meetCode, LocalDate rcDate, RaceStatus status, Pageable pageable) {
@@ -53,5 +61,89 @@ public class RaceService {
 
         return raceRepository.findAll(specification, pageable)
                 .map(RaceResponse::from);
+    }
+
+    // =========================================================================
+    // 코드 리뷰 #1: 누락된 단건 / 출전 / 결과 조회 메서드 추가
+    // =========================================================================
+
+    /** 경주 ID로 단건 조회합니다. 없으면 404 예외를 던집니다. */
+    public RaceResponse getRaceById(Long raceId) {
+        Race race = raceRepository.findById(raceId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RACE_NOT_FOUND));
+        return RaceResponse.from(race);
+    }
+
+    /**
+     * 특정 경주의 출전 명단을 조회합니다.
+     *
+     * race_entries 테이블을 JdbcTemplate으로 직접 조회해
+     * horses / jockeys / trainers 와 JOIN 합니다.
+     */
+    public List<Map<String, Object>> getRaceEntries(Long raceId) {
+        // raceRepository.existsById 로 먼저 경주 존재 여부를 확인합니다.
+        if (!raceRepository.existsById(raceId)) {
+            throw new BusinessException(ErrorCode.RACE_NOT_FOUND);
+        }
+
+        return jdbcTemplate.queryForList(
+                """
+                SELECT
+                    re.id                  AS id,
+                    re.race_id             AS raceId,
+                    re.horse_id            AS horseId,
+                    h.name                 AS horseName,
+                    h.eng_name             AS horseEngName,
+                    re.gate_no             AS gateNo,
+                    re.jockey_id           AS jockeyId,
+                    j.name                 AS jockeyName,
+                    re.trainer_id          AS trainerId,
+                    t.name                 AS trainerName,
+                    re.horse_weight        AS weight,
+                    re.burden_weight       AS burden,
+                    re.win_odds            AS odds
+                FROM race_entries re
+                LEFT JOIN horses   h ON h.id = re.horse_id
+                LEFT JOIN jockeys  j ON j.id = re.jockey_id
+                LEFT JOIN trainers t ON t.id = re.trainer_id
+                WHERE re.race_id = ?
+                ORDER BY re.gate_no
+                """,
+                raceId
+        );
+    }
+
+    /**
+     * 특정 경주의 결과를 조회합니다.
+     *
+     * race_results 테이블을 JdbcTemplate으로 직접 조회합니다.
+     * V9 마이그레이션 기준 컬럼명: rank, record_time, margin, final_odds, horse_id
+     */
+    public List<Map<String, Object>> getRaceResult(Long raceId) {
+        if (!raceRepository.existsById(raceId)) {
+            throw new BusinessException(ErrorCode.RACE_NOT_FOUND);
+        }
+
+        return jdbcTemplate.queryForList(
+                """
+                SELECT
+                    rr.id                  AS id,
+                    rr.race_id             AS raceId,
+                    rr.horse_id            AS horseId,
+                    h.name                 AS horseName,
+                    re.gate_no             AS gateNo,
+                    rr.rank                AS finishOrder,
+                    rr.record_time         AS finishTime,
+                    rr.final_odds          AS finalOdds,
+                    j.name                 AS jockeyName
+                FROM race_results rr
+                LEFT JOIN horses       h  ON h.id  = rr.horse_id
+                LEFT JOIN race_entries re ON re.id = rr.race_entry_id
+                LEFT JOIN jockeys      j  ON j.id  = re.jockey_id
+                WHERE rr.race_id = ?
+                ORDER BY rr.rank NULLS LAST
+                """,
+                raceId
+        );
     }
 }

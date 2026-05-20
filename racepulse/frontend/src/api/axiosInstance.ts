@@ -14,9 +14,10 @@
 // axios = HTTP 요청을 보내는 라이브러리입니다.
 import axios from 'axios'
 
-// Spring Boot 서버 주소
-// 개발 환경: localhost:8080, 운영 환경: 실제 도메인으로 변경합니다.
-const BASE_URL = 'http://localhost:8080/api/v1'
+// import.meta.env.VITE_API_BASE_URL = Vite 환경변수입니다.
+// .env.development 파일에서 읽습니다. 배포 시에는 .env.production 값이 적용됩니다.
+// 환경변수가 없으면 개발 기본값을 사용합니다.
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api/v1'
 
 // Access Token을 localStorage에 저장할 때 사용하는 키 이름입니다.
 // 한 곳에서 관리하면 이름을 바꿀 때 실수를 방지합니다.
@@ -95,11 +96,22 @@ let isRefreshing = false
 
 // 토큰 재발급을 기다리는 요청들을 줄 세워두는 대기열입니다.
 // 재발급이 완료되면 한꺼번에 다시 시도합니다.
-type RefreshCallback = (token: string) => void
-let waitingQueue: RefreshCallback[] = []
+// 코드 리뷰 #3: resolve/reject 둘 다 저장해야 실패 시 무한 대기를 방지할 수 있습니다.
+// resolve만 저장하면 refresh 실패 시 대기 중인 요청들이 영원히 pending 상태가 됩니다.
+type QueueEntry = {
+  resolve: (token: string) => void
+  reject: (error: unknown) => void
+}
+let waitingQueue: QueueEntry[] = []
 
 function processQueue(newToken: string): void {
-  waitingQueue.forEach((cb) => cb(newToken))
+  waitingQueue.forEach(({ resolve }) => resolve(newToken))
+  waitingQueue = []
+}
+
+// refresh 실패 시 대기 중인 모든 요청을 reject 처리합니다.
+function failQueue(error: unknown): void {
+  waitingQueue.forEach(({ reject }) => reject(error))
   waitingQueue = []
 }
 
@@ -118,11 +130,12 @@ axiosInstance.interceptors.response.use(
 
       // 이미 다른 요청이 재발급 중이면 대기열에 추가합니다.
       if (isRefreshing) {
-        return new Promise((resolve) => {
-          waitingQueue.push((token: string) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`
-            resolve(axiosInstance(originalRequest))
-          })
+        // resolve와 reject를 함께 저장해 refresh 성공/실패 양쪽 모두 처리합니다.
+        return new Promise<string>((resolve, reject) => {
+          waitingQueue.push({ resolve, reject })
+        }).then((token) => {
+          originalRequest.headers.Authorization = `Bearer ${token}`
+          return axiosInstance(originalRequest)
         })
       }
 
@@ -141,11 +154,13 @@ axiosInstance.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
         return axiosInstance(originalRequest)
 
-      } catch {
-        // 재발급도 실패하면 로그인 페이지로 이동합니다.
+      } catch (refreshError) {
+        // 재발급 실패 시 대기 중인 요청들도 모두 reject 처리합니다.
+        // 이 처리가 없으면 waitingQueue 의 Promise 들이 영원히 pending 상태가 됩니다.
+        failQueue(refreshError)
         clearAccessToken()
         window.location.href = '/login'
-        return Promise.reject(error)
+        return Promise.reject(refreshError)
       } finally {
         isRefreshing = false
       }

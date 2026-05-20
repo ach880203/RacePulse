@@ -1,6 +1,8 @@
 package com.racepulse.backend.domain.race.controller;
 
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -8,6 +10,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -61,5 +64,33 @@ public class RaceController {
         );
 
         return ResponseEntity.ok(ApiResponse.success(response, "조회 성공"));
+    }
+
+    // =========================================================================
+    // 코드 리뷰 #1: 누락 엔드포인트 추가
+    // =========================================================================
+
+    @Operation(summary = "경주 단건 조회", description = "경주 ID로 상세 정보를 조회합니다.")
+    @GetMapping("/{raceId}")
+    public ResponseEntity<ApiResponse<RaceResponse>> getRaceById(
+            @PathVariable Long raceId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(raceService.getRaceById(raceId), "조회 성공"));
+    }
+
+    @Operation(summary = "출전 명단 조회", description = "특정 경주의 출전마 목록을 조회합니다.")
+    @GetMapping("/{raceId}/entries")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRaceEntries(
+            @PathVariable Long raceId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(raceService.getRaceEntries(raceId), "조회 성공"));
+    }
+
+    @Operation(summary = "경주 결과 조회", description = "특정 경주의 실제 결과를 조회합니다.")
+    @GetMapping("/{raceId}/result")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRaceResult(
+            @PathVariable Long raceId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(raceService.getRaceResult(raceId), "조회 성공"));
     }
 }
