@@ -446,15 +446,16 @@ fix: [prompt-28] 코드 리뷰 높음/중간 이슈 수정 6건
 새 채팅을 열 때 반드시 이 파일(`horse_racing_team_v2.md`)과 `horse_racing_team.md`를 읽고 시작할 것.
 
 ### 당장 해야 할 것 (우선순위 순)
-1. ~~Codex 실행: prompt-26 (AI 해설) + prompt-27 (점검 모드)~~ **✅ 완료 (2026-05-19)**
-2. ~~Codex 프롬프트 28 작성 + 실행: 코드 리뷰 높음/중간 이슈 수정~~ **✅ 완료 (2026-05-19)**
-3. **Figma**: 창현님이 파일 URL 주시면 MCP로 디자인 토큰 생성
-4. **v3.0 재학습**: `POST /ml/train?start_date=2021-04-10&version=v3.0` × 2
-5. **PR 생성**: `feat/phase2-remaining` → develop
+1. **PR #7 머지**: `feat/phase2-remaining` → develop — **Create a merge commit** 방식
+2. **Figma**: 창현님이 파일 URL 주시면 MCP로 디자인 토큰 동기화 → Phase 2 완료 선언 조건
+3. **Phase 2 완료 선언** 후 `develop → main` Phase PR (Squash merge) + 태그 `v2.0.0` + `v3.md` 전환
+4. **v3.0 재학습**: `POST /ml/train?start_date=2021-04-10&version=v3.0` × 2 (XGBoost + LightGBM)
+5. **Phase 3 착수**: Bayesian MC / AI 해설 고도화 / 동적 UI 5종 / 개인정보보호법
 
 ### 현재 브랜치 상태
 - `develop` ← PR #4·#5·#6 머지 완료
-- `feat/phase2-remaining` — prompt 26·27·28 + 디자인 토큰 커밋됨 (PR 미생성)
+- `feat/phase2-remaining` ← **PR #7 생성됨 (머지 대기 중)** — prompt 26·27·28 + 디자인 토큰 + 코드 리뷰 수정 전체 포함
+- PR URL: https://github.com/ach880203/RacePulse/pull/7
 
 ### 실행 중인 자동화
 - Task Scheduler 03:00: 데이터 수집 (`RacePulse_BulkCollect`)
