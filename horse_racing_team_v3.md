@@ -500,15 +500,37 @@ docs: v3.0 재학습 결과 기록 (XGBoost Top-3 98.85% / LightGBM Top-3 99.05%
 새 채팅을 열 때 반드시 이 파일(`horse_racing_team_v3.md`)을 읽고 시작할 것.
 (v1·v2는 필요 시 참조)
 
+### Phase 3 실행 계획 (prompt 29~44) — 2026-05-21 확정
+
+| # | Prompt | 작업 | 단계 | 브랜치 |
+|---|--------|------|------|--------|
+| 1 | **29** | V13 마이그레이션 — trainer_changes / equipment_changes / user_wallets(편자) / 개인정보 동의 / AI 해설 품질 컬럼 | 🔵 DB | feat/phase3-db |
+| 2 | **30** | Bayesian MC — BayesianUpdater (Beta-Binomial) + monte_carlo.py prior 주입 | 🟢 ML | feat/phase3-ml-bayesian |
+| 3 | **31** | Sequential Race Dynamics — Redis 당일 결과 + 뒷 경주 예측 반영 | 🟢 ML | feat/phase3-ml-bayesian |
+| 4 | **32** | Copula 상관행렬 — Cholesky 게이트 → 말-말 상관관계 확장 | 🟢 ML | feat/phase3-ml-bayesian |
+| 5 | **33** | 변경사항 감지 5종 — trainer/equipment/출전취소/트랙급변 + Redis Pub/Sub | 🟡 BE | feat/phase3-be-changes |
+| 6 | **34** | 변경사항 BE API — GET /races/{id}/changes / 즐겨찾기 푸시 / 해설 재생성 트리거 | 🟡 BE | feat/phase3-be-changes |
+| 7 | **35** | AI 해설 고도화 — GPT-4.1 전환 + temperature 분리 + Few-shot + 사행성 이중 필터 + 품질 점수 | 🟡 BE | feat/phase3-be-ai |
+| 8 | **36** | 개인정보보호법 BE — /privacy · /terms API + 회원가입 동의 처리 | 🟡 BE | feat/phase3-be-privacy |
+| 9 | **37** | 편자 시스템 BE — 지갑 API (획득/소비/이원화) + 콘텐츠 접근 권한 체크 | 🟡 BE | feat/phase3-be-freemium |
+| 10 | **38** | 개인정보보호법 FE + 사행성 팝업 — /privacy · /terms + 동의 UI + 스크롤 팝업 | 🟠 FE | feat/phase3-fe-privacy |
+| 11 | **39** | Freemium 잠금 UI — blur 미리보기 + 편자 소비 버튼 + 광고 버튼 + PREMIUM CTA | 🟠 FE | feat/phase3-fe-freemium |
+| 12 | **40** | 말 Stat 카드 — 8개 스탯 ML API + 마사회 사진 연동 + FIFA카드+수치게이지 합체 | 🟠 FE | feat/phase3-fe-ui |
+| 13 | **41** | 동적 UI Phase 3 (27~32번) — Bayesian 애니메이션 / Sequential 갱신 바 / 품질 뱃지 / 신뢰도 게이지 | 🟠 FE | feat/phase3-fe-ui |
+| 14 | **42** | 변경사항 FE UI — 변동사항 카드 + ★ 인라인 + 타임라인 + 벨 아이콘 + 골드 펄스 | 🟠 FE | feat/phase3-fe-ui |
+| 15 | **43** | /admin 패널 — AI 해설 품질 + 변경 감지 현황 + ML 현황 + 편자 통계 + 수집 현황 | 🔴 통합 | feat/phase3-admin |
+| 16 | **44** | 통합 테스트 + 코드 리뷰 — 변경사항 E2E + 편자 시스템 + Bayesian + Freemium 검증 | 🔴 통합 | feat/phase3-review |
+
+**병렬 실행:** prompt-29(DB)와 prompt-30~32(ML)는 동시 시작 가능
+**V13 완료 후:** prompt-33~37(BE) 착수 / FE는 BE와 병행 가능
+
 ### 당장 해야 할 것 (우선순위 순)
 1. ~~**v3.0 재학습**~~ ✅ 2026-05-15 완료 (XGBoost Top-3 98.85% / LightGBM Top-3 99.05%)
-2. **Bayesian MC 고도화**: Bayesian → Sequential → Copula 순 (Phase 3 핵심)
-3. **AI 해설 고도화**: GPT-4.1 전환 + 사행성 이중 필터 + 품질 점수
-4. **개인정보보호법**: `/privacy` + `/terms` + 회원가입 동의 + V13 마이그레이션
-5. **변경사항 감지 5종**: DB 신설 + 피처 추가 + UI + 푸시 알림
-6. **동적 UI Phase 3**: 27~32번 + 추가 아이디어
-7. **Freemium 뼈대**: PREMIUM 게이트 Spring Security 구현 (결제는 Phase 4)
-8. **미니게임**: Phase 4 착수 전 설계 문서 작성
+2. **prompt-29**: V13 마이그레이션 (전체 DB 기반)
+3. **prompt-30~32**: Bayesian MC → Sequential → Copula (ML, V13과 병행)
+4. **prompt-33~37**: BE 핵심 작업 (V13 완료 후)
+5. **prompt-38~42**: FE UI 전체
+6. **prompt-43~44**: 통합 테스트 + 코드 리뷰
 
 ### 현재 브랜치 상태
 - `main` ← PR #8 Squash merge 완료 / 태그 `v2.0.0`
