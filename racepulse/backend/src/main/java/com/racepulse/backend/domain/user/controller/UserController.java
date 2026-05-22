@@ -4,6 +4,9 @@ import com.racepulse.backend.domain.user.dto.FavoriteRequest;
 import com.racepulse.backend.domain.user.dto.FavoriteResponse;
 import com.racepulse.backend.domain.user.dto.PreferenceRequest;
 import com.racepulse.backend.domain.user.dto.PreferenceResponse;
+import com.racepulse.backend.domain.privacy.dto.ConsentRequest;
+import com.racepulse.backend.domain.privacy.dto.ConsentResponse;
+import com.racepulse.backend.domain.privacy.service.UserConsentService;
 import com.racepulse.backend.domain.user.service.UserPageService;
 import com.racepulse.backend.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +30,7 @@ import java.util.UUID;
 public class UserController {
 
     private final UserPageService userPageService;
+    private final UserConsentService userConsentService;
 
     @GetMapping("/favorites")
     public ResponseEntity<ApiResponse<List<FavoriteResponse>>> getFavorites(@AuthenticationPrincipal UUID userId) {
@@ -57,6 +61,23 @@ public class UserController {
     @PatchMapping("/preferences")
     public ResponseEntity<ApiResponse<PreferenceResponse>> updatePreferences(@AuthenticationPrincipal UUID userId, @RequestBody PreferenceRequest request) {
         return ResponseEntity.ok(ApiResponse.success(userPageService.updatePreferences(userId, request), "설정 변경 성공"));
+    }
+
+    // 현재 로그인한 유저의 약관/마케팅 동의 상태를 조회합니다.
+    // @AuthenticationPrincipal에는 JwtAuthenticationFilter가 토큰에서 꺼낸 userId가 들어옵니다.
+    @GetMapping("/consent")
+    public ResponseEntity<ApiResponse<ConsentResponse>> getConsent(@AuthenticationPrincipal UUID userId) {
+        return ResponseEntity.ok(ApiResponse.success(userConsentService.getConsent(userId), "동의 상태 조회 성공"));
+    }
+
+    // 약관 재동의 또는 마케팅 수신 동의 변경을 처리합니다.
+    // 마케팅 동의만 바꾸는 요청은 기존 약관 동의 시각을 보존합니다.
+    @PostMapping("/consent")
+    public ResponseEntity<ApiResponse<ConsentResponse>> updateConsent(
+            @AuthenticationPrincipal UUID userId,
+            @RequestBody ConsentRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(userConsentService.updateConsent(userId, request), "동의 상태 변경 성공"));
     }
 
 }

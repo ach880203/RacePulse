@@ -14,6 +14,8 @@ from typing import Optional
 
 # FastAPI 도구들
 from fastapi import APIRouter, Depends, HTTPException
+# BaseModel = JSON body로 들어오는 Monte Carlo 요청 값을 타입으로 검증하기 위한 Pydantic 기본 클래스입니다.
+from pydantic import BaseModel
 
 # SQLAlchemy
 from sqlalchemy import select, and_
@@ -32,10 +34,21 @@ from app.services.monte_carlo import MonteCarloService
 from app.services.predictor import PredictorService
 from app.services.rival_service import RivalService
 from app.services.running_style_service import RunningStyleService
+from app.services.sequential_updater import SequentialUpdater
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ml")
+
+
+class MonteCarloSimulationRequest(BaseModel):
+    """POST /ml/simulate 요청 본문입니다. Phase 3부터 Bayesian/Sequential/Copula 보정 옵션을 함께 받습니다."""
+
+    race_id: int
+    n_simulations: int = 10_000
+    use_bayesian: bool = True
+    use_sequential: bool = True
+    use_copula: bool = True
 
 
 @router.post("/features/calculate/{race_id}")
@@ -425,12 +438,21 @@ async def activate_model(
 async def run_monte_carlo_simulation(
     race_id: int,
     n_simulations: int = 10_000,
+    use_bayesian: bool = True,
+    use_sequential: bool = True,
+    use_copula: bool = True,
     db: AsyncSession = Depends(get_db),
 ):
     """예측 확률을 여러 번 추첨해 각 말의 순위별 확률 분포를 계산합니다."""
     service = MonteCarloService(db)
     try:
-        result = await service.run_simulation(race_id, n_simulations)
+        result = await service.run_simulation(
+            race_id,
+            n_simulations,
+            use_bayesian=use_bayesian,
+            use_sequential=use_sequential,
+            use_copula=use_copula,
+        )
         return {
             "success": True,
             "data": result,
@@ -438,6 +460,88 @@ async def run_monte_carlo_simulation(
         }
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.post("/simulate")
+async def run_monte_carlo_simulation_from_body(
+    request: MonteCarloSimulationRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """JSON body로 Monte Carlo 시뮬레이션을 실행합니다. prompt-30의 use_bayesian 옵션을 지원합니다."""
+    service = MonteCarloService(db)
+    try:
+        result = await service.run_simulation(
+            request.race_id,
+            request.n_simulations,
+            use_bayesian=request.use_bayesian,
+            use_sequential=request.use_sequential,
+            use_copula=request.use_copula,
+        )
+        return {
+            "success": True,
+            "data": result,
+            "message": "Bayesian·Sequential·Copula Monte Carlo 시뮬레이션 완료",
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.post("/sequential/update")
+async def update_sequential(
+    rc_date: str,
+    completed_race_no: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """경주 결과 수집 후 Redis에 당일 Sequential 정보를 저장하고 다음 경주 시뮬레이션을 갱신합니다.
+
+    @param rc_date            경주 날짜 (예: 2026-06-07)
+    @param completed_race_no  방금 끝난 경주 번호
+    """
+    updater = SequentialUpdater(db_session=db)
+    result_data = await updater.load_completed_race_result(rc_date, completed_race_no)
+    if result_data is None:
+        raise HTTPException(status_code=404, detail="저장할 경주 결과를 찾을 수 없습니다.")
+
+    await updater.store_race_result_async(rc_date, completed_race_no, result_data)
+    next_race_id = await updater.find_next_race_id(rc_date, completed_race_no)
+    simulation_result = None
+
+    if next_race_id is not None:
+        try:
+            # 다음 경주 예측은 Bayesian prior 위에 Sequential prior를 한 번 더 적용합니다.
+            # 예측 데이터가 아직 없으면 업데이트 API 자체가 실패하지 않도록 결과만 생략합니다.
+            simulation_result = await MonteCarloService(db).run_simulation(
+                next_race_id,
+                use_bayesian=True,
+                use_sequential=True,
+                use_copula=True,
+            )
+        except ValueError:
+            simulation_result = None
+
+    return {
+        "success": True,
+        "data": {
+            "rc_date": rc_date,
+            "completed_race_no": completed_race_no,
+            "next_race_id": next_race_id,
+            "next_race_updated": simulation_result is not None,
+            "simulation": simulation_result,
+        },
+        "message": "Sequential 업데이트 완료",
+    }
+
+
+@router.get("/sequential/status/{rc_date}")
+async def get_sequential_status(rc_date: str):
+    """오늘 Sequential 업데이트 현황을 조회합니다."""
+    updater = SequentialUpdater()
+    status = await updater.get_status_async(rc_date)
+    return {
+        "success": True,
+        "data": status,
+        "message": "Sequential 업데이트 현황 조회 성공",
+    }
 
 
 @router.get("/simulate/{race_id}/result")
@@ -536,3 +640,84 @@ async def get_head_to_head(horse_id_a: int, horse_id_b: int, db: AsyncSession = 
     if not result:
         raise HTTPException(status_code=404, detail="직접 대결 이력이 없습니다.")
     return {"success": True, "data": result, "message": "직접 대결 통계 조회 성공"}
+
+
+# =============================================================================
+# Phase 3 — 변경사항 감지 API (prompt-33)
+# =============================================================================
+
+@router.post("/changes/detect")
+async def trigger_change_detection(
+    rc_date: str,
+    race_no: Optional[int] = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    변경사항 감지를 수동으로 트리거합니다.
+
+    APScheduler가 30분마다 자동 실행하지만,
+    관리자 또는 테스트 시 즉시 실행할 때 이 엔드포인트를 사용합니다.
+
+    @param rc_date   경주 날짜 (YYYYMMDD 형식, 예: '20260607')
+    @param race_no   특정 경주만 검사할 경우 지정 (없으면 전체 경주)
+    """
+    from app.services.change_detector import ChangeDetector
+    from app.services.kra_api import KRAApiService
+
+    kra = KRAApiService()
+    try:
+        detector = ChangeDetector(db, kra)
+        changes = await detector.detect_all(rc_date=rc_date, race_no=race_no)
+
+        return {
+            "success": True,
+            "data": {
+                "rc_date": rc_date,
+                "race_no": race_no,
+                "total_changes": len(changes),
+                # ChangeEvent를 dict로 변환해서 반환합니다.
+                "changes": [
+                    {
+                        "type": c.type,
+                        "badge": c.badge,
+                        "impact": c.impact,
+                        "race_id": c.race_id,
+                        "horse_id": c.horse_id,
+                        "old_value": c.old_value,
+                        "new_value": c.new_value,
+                        "detected_at": c.detected_at.isoformat(),
+                    }
+                    for c in changes
+                ],
+            },
+            "message": f"변경감지 완료: {len(changes)}건",
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        await kra.close()
+
+
+@router.get("/changes/status/{rc_date}")
+async def get_change_detection_status(rc_date: str):
+    """
+    오늘 변경감지 현황을 조회합니다.
+
+    마지막 실행 시각과 감지 건수를 확인할 수 있습니다.
+    관리자 패널 및 FE 상태 표시줄에서 사용합니다.
+    """
+    from app.core.redis_client import get_redis_client
+
+    redis = get_redis_client()
+    # 체크포인트 키에서 마지막 실행 시각을 조회합니다.
+    last_run = await redis.get("kra:checkpoint:change_detection")
+
+    return {
+        "success": True,
+        "data": {
+            "rc_date": rc_date,
+            "last_run": last_run,
+            "schedule": "30분마다 (토/일/월 09:00~17:00)",
+        },
+        "message": "변경감지 현황 조회 성공",
+    }

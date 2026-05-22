@@ -74,7 +74,7 @@
 
 ---
 
-## 📝 프롬프트 실행 현황 (총 28개 완료 / Phase 2 종료)
+## 📝 프롬프트 실행 현황 (총 44개 완료 / Phase 3 완료 ✅)
 
 | # | 프롬프트 | 담당 | 상태 |
 |---|---------|------|------|
@@ -106,6 +106,22 @@
 | 26 | gpt-commentary | BE/ML | ✅ |
 | 27 | maintenance-mode | FE/BE | ✅ |
 | 28 | code-review-fixes | 전체 | ✅ |
+| 29 | v13-migration | DB | ✅ |
+| 30 | bayesian-mc | ML | ✅ |
+| 31 | sequential-race-dynamics | ML | ✅ |
+| 32 | copula | ML | ✅ |
+| 33 | change-detection | ML | ✅ |
+| 34 | change-detection-api | BE | ✅ |
+| 35 | ai-commentary-upgrade | ML/BE | ✅ |
+| 36 | privacy-be | BE | ✅ |
+| 37 | freemium-be | BE | ✅ |
+| 38 | privacy-fe | FE | ✅ |
+| 39 | freemium-fe | FE | ✅ |
+| 40 | horse-stat-card | FE | ✅ |
+| 41 | dynamic-ui-phase3 | FE | ✅ |
+| 42 | change-fe-ui | FE | ✅ |
+| 43 | admin-panel | BE/FE | ✅ |
+| 44 | integration-test | 전체 | ✅ |
 
 ---
 
@@ -284,6 +300,62 @@
 > 킥오프~3차 회의 전체 기록 → `horse_racing_team.md` (v1 아카이브)
 > Phase 2 전체 기록 → `horse_racing_team_v2.md` (v2 아카이브)
 > 요약 → 노션 워크스페이스 참조
+
+---
+
+### [날짜: 2026-05-22] Phase 3 완료 선언
+
+| 조건 | 상태 |
+|------|------|
+| prompt-29~44 전체 구현 (16개) | ✅ |
+| Bayesian MC + Sequential + Copula | ✅ |
+| 변경감지 5종 + BE + FE | ✅ |
+| AI 해설 GPT-4.1 고도화 + 품질 점수 | ✅ |
+| 개인정보보호법 BE + FE | ✅ |
+| 편자 시스템 전체 (BE + FE) | ✅ |
+| /admin 패널 4탭 | ✅ |
+| 통합 테스트 E2E 5개 플로우 검증 | ✅ |
+| develop PR #9 생성 | ✅ |
+| v3.0.0 태그 | ⏳ (PR #9 머지 후) |
+
+---
+
+### [날짜: 2026-05-21~22] 15차 작업 세션 (Phase 3 핵심 구현)
+- **참석**: 창현님
+
+#### 완료 작업
+
+| 구분 | 작업 | 결과 |
+|------|------|------|
+| DB | V13 Flyway 마이그레이션 | trainer_changes / equipment_changes / user_wallets / wallet_transactions / AI 품질 컬럼 |
+| ML | Bayesian MC (BayesianUpdater) | Beta-Binomial O(1) prior 업데이트 + monte_carlo.py 주입 |
+| ML | Sequential Race Dynamics | Redis TTL 당일 결과 + 뒷 경주 예측 자동 업데이트 |
+| ML | Copula 상관행렬 | 말-말 상관관계 확장 (조교사/혈통/경마장/직접대결) |
+| ML | ChangeDetector (5종) | 기수/취소/조교사/장비/트랙 + Redis Pub/Sub + APScheduler 30분 잡 |
+| BE | ChangeController + ChangeService | GET /races/{id}/changes + Redis 구독 + 웹 푸시 |
+| BE | AI 해설 고도화 | GPT-4.1 전환 + temperature 분리(0.7/0.3) + 사행성 이중필터 + 품질점수 |
+| BE | 개인정보보호법 | /privacy · /terms API + 회원가입 동의 처리 + consent API |
+| BE | 편자 시스템 | UserWallet + WalletTransaction + 지갑 API 7개 (이원화 + Redis 상한) |
+| FE | 개인정보보호법 FE | PrivacyPage / TermsPage + TermsConsentModal (스크롤 2단계 동의) |
+| FE | Freemium 잠금 UI | LockedContent (blur 4px) + 편자 소비 + 광고 타이머 + WalletHUD |
+| FE | 말 Stat 카드 | FIFA 카드 + 8개 수치 게이지 + 카드 플립 + Freemium 잠금 연동 |
+| FE | 동적 UI 27~31번 | Bayesian 애니메이션 / Sequential 갱신 바 / 품질 뱃지 / 스크롤 바 / 신뢰도 게이지 |
+| FE | 변경사항 FE | ChangeBadge + 변동사항 카드 + 타임라인 + 헤더 벨 아이콘 |
+| DOCS | 프롬프트 파일 | 28~44번 전체 프롬프트 문서 작성 (racepulse/docs/prompts/) |
+| GIT | Phase 3 PR | feat/phase3-fe-freemium → develop PR 생성 |
+
+#### 커밋 내역
+```
+feat: [prompt-29~32] Phase 3 DB 마이그레이션 + ML 고도화
+feat: [prompt-33] 변경사항 감지 5종 + Redis Pub/Sub + APScheduler
+feat: [prompt-34~37] BE Phase 3 — 변경감지/AI해설/개인정보/편자
+feat: [prompt-39] Freemium 잠금 UI
+docs: [prompt-38~44] FE·admin·통합테스트 프롬프트 전체
+```
+
+#### 남은 작업
+- **prompt-43**: /admin 패널 (BE 4개 API + FE 4탭) — feat/phase3-admin
+- **prompt-44**: 통합 테스트 + Phase 3 완료 선언 + v3.0.0 태그
 
 ---
 
@@ -526,18 +598,18 @@ docs: v3.0 재학습 결과 기록 (XGBoost Top-3 98.85% / LightGBM Top-3 99.05%
 
 ### 당장 해야 할 것 (우선순위 순)
 1. ~~**v3.0 재학습**~~ ✅ 2026-05-15 완료 (XGBoost Top-3 98.85% / LightGBM Top-3 99.05%)
-2. **prompt-29**: V13 마이그레이션 (전체 DB 기반)
-3. **prompt-30~32**: Bayesian MC → Sequential → Copula (ML, V13과 병행)
-4. **prompt-33~37**: BE 핵심 작업 (V13 완료 후)
-5. **prompt-38~42**: FE UI 전체
-6. **prompt-43~44**: 통합 테스트 + 코드 리뷰
+2. ~~**prompt-29~44**~~ ✅ 2026-05-22 완료 (Phase 3 전체 16개 프롬프트 완료)
+3. **Phase 4 시작**: AWS 배포 / 부하 테스트 / README / 포트폴리오 문서화
+4. **Phase 5 예정**: 다마고치 미니게임 / 퀴즈 / 토너먼트 / 상점
 
-### 현재 브랜치 상태
-- `main` ← PR #8 Squash merge 완료 / 태그 `v2.0.0`
-- `develop` ← 최신화 완료
-- Phase 3 브랜치: `feat/phase3-ml-bayesian` / `feat/phase3-be-privacy` / `feat/phase3-fe-dynamic-ui`
+### 현재 브랜치 상태 (2026-05-22 기준)
+- `main` ← v2.0.0 태그 / Phase 2 완료
+- `develop` ← Phase 3 PR #9 머지 대기 중
+- `feat/phase3-fe-freemium` ← **Phase 3 전체 커밋** / PR #9 → develop
+- **v3.0.0 태그**: PR #9 develop 머지 → main 머지 후 예정
 
 ### 실행 중인 자동화
 - Task Scheduler 03:00: 데이터 수집 (`RacePulse_BulkCollect`)
 - Task Scheduler 05:00: ML 파이프라인 (`RacePulse_NightlyPipeline`)
+- APScheduler: 변경감지 토/일/월 09:00~17:00 30분마다 (`change_detection_sat/sun/mon`)
 - 로그: `racepulse/ml-server/scripts/nightly_log.txt`

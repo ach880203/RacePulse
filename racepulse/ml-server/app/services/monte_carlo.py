@@ -19,9 +19,15 @@ from typing import Any
 # numpy = 많은 난수를 한 번에 계산해 Python 반복문보다 빠르게 시뮬레이션하기 위한 수치 계산 라이브러리입니다.
 import numpy as np
 # sqlalchemy.text = 직접 작성한 SQL 문자열을 SQLAlchemy 비동기 세션에서 실행하게 해주는 도구입니다.
-from sqlalchemy import text
+# bindparam = IN (...) 조건에 파이썬 리스트를 안전하게 펼쳐 넣을 때 사용합니다.
+from sqlalchemy import bindparam, text
 # AsyncSession = FastAPI 서비스에서 DB를 비동기로 조회/저장하기 위한 SQLAlchemy 세션 타입입니다.
 from sqlalchemy.ext.asyncio import AsyncSession
+
+# BayesianUpdater = 최근 경주 결과를 Beta-Binomial 방식으로 반영해 ML 승률 prior를 보정하는 Phase 3 서비스입니다.
+from app.services.bayesian_updater import BayesianUpdater
+# SequentialUpdater = 당일 앞 경주 결과를 Redis에서 읽어 뒷 경주 예측 확률을 미세 보정하는 Phase 3 서비스입니다.
+from app.services.sequential_updater import SequentialUpdater
 
 try:
     # qmc = Sobol 같은 고르게 퍼지는 난수열을 만들기 위한 scipy 도구입니다.
@@ -58,6 +64,8 @@ WEATHER_SIGMA = {
     None: 0.02,
 }
 
+COPULA_SIGMA = 0.03
+
 
 @dataclass(frozen=True)
 class SimulationContext:
@@ -68,6 +76,8 @@ class SimulationContext:
     odds_win: list[float | None]
     weather_sigma: float
     smart_money_indexes: list[int]
+    horse_correlation_matrix: list[list[float]] | None
+    copula_sigma: float
     n_simulations: int
     seed: int
     use_qmc: bool
@@ -97,6 +107,123 @@ def _build_gate_correlation(gate_numbers: list[int]) -> np.ndarray:
     correlation = 0.3 * np.exp(-0.5 * (distance / 3.0) ** 2)
     np.fill_diagonal(correlation, 1.0)
     return correlation
+
+
+def build_horse_correlation_matrix(
+    entries: list[Any],
+    db_session: Any | None = None,
+    rival_correlations: dict[tuple[int, int], float] | None = None,
+) -> np.ndarray:
+    """말들 간의 Copula 상관계수 행렬을 만듭니다.
+
+    Copula는 각 말의 예측 확률이라는 "악보"는 유지하면서,
+    말들끼리 함께 움직이는 "하모니"를 추가하는 도구입니다.
+    예를 들어 같은 조교사 밑의 말들은 훈련 환경, 마방 컨디션, 관리 리듬이 비슷해
+    같이 좋은 날 또는 같이 나쁜 날이 생길 수 있습니다.
+    """
+    horse_count = len(entries)
+    correlation_matrix = np.eye(horse_count, dtype=float)
+    rival_correlations = rival_correlations or {}
+
+    for left_index, left_entry in enumerate(entries):
+        for right_index, right_entry in enumerate(entries):
+            if left_index >= right_index:
+                # 상관행렬은 대칭입니다.
+                # A와 B의 상관이 0.2라면 B와 A의 상관도 똑같이 0.2이므로 한쪽만 계산합니다.
+                continue
+
+            rho = 0.0
+
+            left_trainer_id = _entry_value(left_entry, "trainer_id")
+            right_trainer_id = _entry_value(right_entry, "trainer_id")
+            if left_trainer_id is not None and left_trainer_id == right_trainer_id:
+                rho += 0.15
+
+            left_father = _entry_value(left_entry, "father_horse_id") or _entry_value(left_entry, "sire_id") or _entry_value(left_entry, "father_name")
+            right_father = _entry_value(right_entry, "father_horse_id") or _entry_value(right_entry, "sire_id") or _entry_value(right_entry, "father_name")
+            if left_father is not None and left_father == right_father:
+                rho += 0.10
+
+            left_meet_code = _entry_value(left_entry, "meet_code")
+            right_meet_code = _entry_value(right_entry, "meet_code")
+            if left_meet_code is not None and left_meet_code == right_meet_code:
+                rho += 0.05
+
+            left_horse_id = int(_entry_value(left_entry, "horse_id"))
+            right_horse_id = int(_entry_value(right_entry, "horse_id"))
+            pair_key = _ordered_horse_pair(left_horse_id, right_horse_id)
+            rho += rival_correlations.get(pair_key, _get_rival_correlation(left_horse_id, right_horse_id, db_session))
+
+            correlation_matrix[left_index, right_index] = min(max(rho, 0.0), 0.8)
+            correlation_matrix[right_index, left_index] = correlation_matrix[left_index, right_index]
+
+    return _make_positive_definite(correlation_matrix)
+
+
+def _get_rival_correlation(horse_id_1: int, horse_id_2: int, db_session: Any | None) -> float:
+    """rival_records 직접 대결 기록을 상관계수로 변환합니다.
+
+    평균 순위 차이가 작으면 두 말의 실력이 비슷하다고 보고 상관을 높입니다.
+    다만 대결 횟수가 3회 미만이면 우연일 수 있으므로 보정하지 않습니다.
+    """
+    if db_session is None:
+        return 0.0
+
+    try:
+        h1, h2 = _ordered_horse_pair(horse_id_1, horse_id_2)
+        record = db_session.execute(
+            text(
+                """
+                SELECT total_races, horse1_avg_position, horse2_avg_position
+                FROM rival_records
+                WHERE horse_id_1 = :h1 AND horse_id_2 = :h2
+                ORDER BY total_races DESC, updated_at DESC NULLS LAST
+                LIMIT 1
+                """
+            ),
+            {"h1": h1, "h2": h2},
+        ).fetchone()
+    except Exception:
+        return 0.0
+
+    if not record or int(record.total_races or 0) < 3:
+        return 0.0
+
+    pos_diff = abs(float(record.horse1_avg_position or 5.0) - float(record.horse2_avg_position or 5.0))
+    base_rho = max(0.0, 0.10 - pos_diff * 0.02)
+    confidence = min(float(record.total_races or 0) / 10.0, 1.0)
+    return base_rho * confidence
+
+
+def _entry_value(entry: Any, key: str) -> Any:
+    """dict와 객체를 같은 방식으로 읽기 위한 작은 도우미입니다."""
+    if isinstance(entry, dict):
+        return entry.get(key)
+    return getattr(entry, key, None)
+
+
+def _ordered_horse_pair(horse_id_1: int, horse_id_2: int) -> tuple[int, int]:
+    """rival_records 테이블 제약조건에 맞춰 작은 horse_id가 먼저 오게 합니다."""
+    return (horse_id_1, horse_id_2) if horse_id_1 < horse_id_2 else (horse_id_2, horse_id_1)
+
+
+def _make_positive_definite(correlation_matrix: np.ndarray) -> np.ndarray:
+    """Cholesky 분해가 가능하도록 수치적으로 안전한 양정치 행렬로 보정합니다."""
+    safe_matrix = np.array(correlation_matrix, dtype=float)
+    safe_matrix = (safe_matrix + safe_matrix.T) / 2.0
+    np.fill_diagonal(safe_matrix, 1.0)
+
+    # Cholesky 분해는 상관행렬을 난수에 입힐 수 있는 삼각행렬로 나누는 도구입니다.
+    # 상관이 너무 강하거나 반올림 오차가 있으면 np.linalg.LinAlgError가 날 수 있어 작은 값을 대각선에 더합니다.
+    jitter = 1e-8
+    for _ in range(6):
+        try:
+            np.linalg.cholesky(safe_matrix)
+            return safe_matrix
+        except np.linalg.LinAlgError:
+            safe_matrix = safe_matrix + np.eye(len(safe_matrix)) * jitter
+            jitter *= 10
+    return np.eye(len(correlation_matrix), dtype=float)
 
 
 def _generate_uniform_samples(row_count: int, horse_count: int, seed: int, use_qmc: bool) -> np.ndarray:
@@ -129,6 +256,11 @@ def _simulate_chunk(context: SimulationContext) -> tuple[np.ndarray, int]:
     }
     gate_biases = np.array([_gate_bias_for(gate_no) for gate_no in context.gate_numbers], dtype=float)
     smart_money_indexes = np.array(context.smart_money_indexes, dtype=int)
+    horse_correlation_matrix = (
+        np.array(context.horse_correlation_matrix, dtype=float)
+        if context.horse_correlation_matrix is not None
+        else None
+    )
 
     for batch_start in range(0, context.n_simulations, BATCH_SIZE):
         batch_size = min(BATCH_SIZE, context.n_simulations - batch_start)
@@ -143,7 +275,7 @@ def _simulate_chunk(context: SimulationContext) -> tuple[np.ndarray, int]:
         if smart_money_indexes.size > 0:
             adjusted[:, smart_money_indexes] *= 1.10
 
-        if norm is not None and context.weather_sigma > 0:
+        if norm is not None and (context.weather_sigma > 0 or horse_correlation_matrix is not None):
             normal_noise = norm.ppf(np.clip(merged_uniforms, 0.000001, 0.999999))
             try:
                 cholesky_matrix = np.linalg.cholesky(_build_gate_correlation(context.gate_numbers))
@@ -152,6 +284,19 @@ def _simulate_chunk(context: SimulationContext) -> tuple[np.ndarray, int]:
                 # 상관 행렬이 수치적으로 불안정하면 독립 노이즈로 내려갑니다.
                 correlated_noise = normal_noise
             adjusted = adjusted + (correlated_noise * context.weather_sigma)
+
+            if horse_correlation_matrix is not None and context.copula_sigma > 0:
+                try:
+                    # norm.cdf(X)는 정규분포 누적분포함수입니다.
+                    # 누적확률은 항상 0~1 사이이므로 "상관이 반영된 확률 흔들림"으로 쓰기 좋습니다.
+                    horse_cholesky = np.linalg.cholesky(_make_positive_definite(horse_correlation_matrix))
+                    copula_normal = normal_noise @ horse_cholesky.T
+                    copula_uniform = norm.cdf(copula_normal)
+                    copula_noise = copula_uniform - 0.5
+                    adjusted = adjusted + (copula_noise * context.copula_sigma)
+                except np.linalg.LinAlgError:
+                    # 수치적으로 불안정하면 Copula만 건너뛰고 기존 게이트/날씨 시뮬레이션은 유지합니다.
+                    pass
 
         adjusted = np.clip(adjusted, 0.0001, None)
         adjusted = adjusted / adjusted.sum(axis=1, keepdims=True)
@@ -174,18 +319,29 @@ class MonteCarloService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def run_simulation(self, race_id: int, n_simulations: int = 10_000) -> dict[str, Any]:
+    async def run_simulation(
+        self,
+        race_id: int,
+        n_simulations: int = 10_000,
+        use_bayesian: bool = False,
+        use_sequential: bool = False,
+        use_copula: bool = False,
+    ) -> dict[str, Any]:
         rows = await self._load_prediction_rows(race_id)
         if not rows:
             raise ValueError("예측 결과가 없어 시뮬레이션을 실행할 수 없습니다.")
 
         requested_simulations = max(int(n_simulations or MIN_SIMULATIONS), MIN_SIMULATIONS)
         target_simulations = min(requested_simulations, MAX_SIMULATIONS)
+        bayesian_applied, bayesian_updated_count = await self._apply_bayesian_priors(race_id, rows, use_bayesian)
+        sequential_applied, sequential_updated_count = await self._apply_sequential_priors(rows, use_sequential)
         probabilities = self._build_adjusted_probabilities(rows)
         gate_numbers = self._build_gate_numbers(rows)
         odds_win = [self._safe_float(row.get("odds_win")) for row in rows]
         weather_sigma = self._weather_sigma(rows[0].get("weather"))
         smart_money_indexes = self._detect_smart_money_indexes(rows)
+        copula_matrix = await self._build_copula_matrix(rows, use_copula)
+        copula_applied = copula_matrix is not None
 
         rank_counts = np.zeros((len(rows), len(rows)), dtype=np.int64)
         upset_wins = 0
@@ -205,6 +361,7 @@ class MonteCarloService:
                 odds_win=odds_win,
                 weather_sigma=weather_sigma,
                 smart_money_indexes=smart_money_indexes,
+                horse_correlation_matrix=copula_matrix,
                 n_simulations=batch_target,
                 seed=seed_base + completed_simulations,
             )
@@ -247,6 +404,12 @@ class MonteCarloService:
             "gate_bias_applied": True,
             "weather_uncertainty_sigma": weather_sigma,
             "smart_money_detected": [rows[index]["horse_id"] for index in smart_money_indexes],
+            "bayesian_applied": bayesian_applied,
+            "bayesian_updated_count": bayesian_updated_count,
+            "sequential_applied": sequential_applied,
+            "sequential_updated_count": sequential_updated_count,
+            "copula_applied": copula_applied,
+            "copula_sigma": COPULA_SIGMA if copula_applied else 0.0,
         }
         await self.save_simulation_result(race_id, result)
         return result
@@ -258,6 +421,7 @@ class MonteCarloService:
         odds_win: list[float | None],
         weather_sigma: float,
         smart_money_indexes: list[int],
+        horse_correlation_matrix: np.ndarray | None,
         n_simulations: int,
         seed: int,
     ) -> tuple[np.ndarray, int]:
@@ -269,6 +433,8 @@ class MonteCarloService:
                 odds_win=odds_win,
                 weather_sigma=weather_sigma,
                 smart_money_indexes=smart_money_indexes,
+                horse_correlation_matrix=horse_correlation_matrix.tolist() if horse_correlation_matrix is not None else None,
+                copula_sigma=COPULA_SIGMA if horse_correlation_matrix is not None else 0.0,
                 n_simulations=n_simulations,
                 seed=seed,
                 use_qmc=USE_QMC,
@@ -289,6 +455,8 @@ class MonteCarloService:
                     odds_win=odds_win,
                     weather_sigma=weather_sigma,
                     smart_money_indexes=smart_money_indexes,
+                    horse_correlation_matrix=horse_correlation_matrix.tolist() if horse_correlation_matrix is not None else None,
+                    copula_sigma=COPULA_SIGMA if horse_correlation_matrix is not None else 0.0,
                     n_simulations=chunk_n,
                     seed=seed + start,
                     use_qmc=USE_QMC,
@@ -361,6 +529,7 @@ class MonteCarloService:
 
     async def _load_prediction_rows(self, race_id: int) -> list[dict[str, Any]]:
         odds_history_exists = await self._table_exists("odds_history")
+        running_style_exists = await self._table_exists("horse_running_style")
         # DB 컬럼명: opening, final (V9 마이그레이션 기준)
         odds_select = "oh.opening, oh.final" if odds_history_exists else "NULL AS opening, NULL AS final"
         odds_join = (
@@ -376,6 +545,20 @@ class MonteCarloService:
             if odds_history_exists
             else ""
         )
+        running_style_select = "hrs.style AS running_style" if running_style_exists else "NULL AS running_style"
+        running_style_join = (
+            """
+            LEFT JOIN LATERAL (
+                SELECT style
+                FROM horse_running_style
+                WHERE horse_running_style.horse_id = h.id
+                ORDER BY updated_at DESC NULLS LAST, id DESC
+                LIMIT 1
+            ) hrs ON true
+            """
+            if running_style_exists
+            else ""
+        )
 
         result = await self.db.execute(
             text(
@@ -384,14 +567,22 @@ class MonteCarloService:
                     p.win_prob,
                     h.id AS horse_id,
                     h.name AS horse_name,
+                    h.father_name,
+                    h.meet_code,
+                    e.jockey_id,
+                    e.trainer_id,
                     e.odds_win,
                     e.gate_no,
                     r.weather,
+                    r.rc_date,
+                    r.race_no,
+                    {running_style_select},
                     {odds_select}
                 FROM predictions p
                 JOIN race_entries e ON e.id = p.race_entry_id
                 JOIN horses h ON h.id = e.horse_id
                 JOIN races r ON r.id = p.race_id
+                {running_style_join}
                 {odds_join}
                 WHERE p.race_id = :race_id
                 ORDER BY p.predicted_rank ASC NULLS LAST, p.win_prob DESC NULLS LAST
@@ -436,6 +627,122 @@ class MonteCarloService:
             probabilities[index] *= 1.10
 
         return _normalize_probabilities(probabilities)
+
+    async def _apply_bayesian_priors(
+        self,
+        race_id: int,
+        rows: list[dict[str, Any]],
+        use_bayesian: bool,
+    ) -> tuple[bool, int]:
+        """Bayesian 옵션이 켜져 있으면 최근 결과를 반영한 posterior 승률을 rows에 주입합니다."""
+        if not use_bayesian:
+            return False, 0
+
+        entries_with_priors = {
+            int(row["horse_id"]): max(self._safe_float(row.get("win_prob")) or 0.0, 0.0001)
+            for row in rows
+        }
+        if not entries_with_priors:
+            return False, 0
+
+        updater = BayesianUpdater(self.db)
+        bayesian_priors = await updater.update_race_entries(race_id, entries_with_priors)
+        updated_count = 0
+
+        for row in rows:
+            horse_id = int(row["horse_id"])
+            posterior_prob = bayesian_priors.get(horse_id)
+            if posterior_prob is None:
+                continue
+
+            # posterior = prior와 최근 경기 결과를 함께 본 뒤의 보정 승률입니다.
+            # 이후 Phase 2의 QMC/Adaptive MC는 이 값을 시작 확률로 사용합니다.
+            row["bayesian_prior_prob"] = row.get("win_prob")
+            row["win_prob"] = posterior_prob
+            updated_count += 1
+
+        return updated_count > 0, updated_count
+
+    async def _apply_sequential_priors(
+        self,
+        rows: list[dict[str, Any]],
+        use_sequential: bool,
+    ) -> tuple[bool, int]:
+        """Sequential 옵션이 켜져 있으면 당일 앞 경주 결과를 반영해 rows의 win_prob를 보정합니다."""
+        if not use_sequential or not rows:
+            return False, 0
+
+        rc_date = rows[0].get("rc_date")
+        race_no = rows[0].get("race_no")
+        if rc_date is None or race_no is None:
+            return False, 0
+
+        updater = SequentialUpdater()
+        adjustments = await updater.get_sequential_adjustments_async(str(rc_date), int(race_no))
+        if not adjustments.get("sequential_available"):
+            return False, 0
+
+        adjusted_rows = updater.apply_sequential_prior(rows, adjustments)
+        updated_count = 0
+
+        for row, adjusted_row in zip(rows, adjusted_rows):
+            # Sequential prior = Bayesian까지 반영된 확률에 오늘 트랙/기수 흐름을 한 번 더 보정한 값입니다.
+            # Redis 데이터는 자정에 사라지므로 다음 경주일 예측에는 영향을 주지 않습니다.
+            row["sequential_prior_prob"] = adjusted_row.get("sequential_prior_prob")
+            row["sequential_factor"] = adjusted_row.get("sequential_factor")
+            row["sequential_reasons"] = adjusted_row.get("sequential_reasons", [])
+            row["win_prob"] = adjusted_row["win_prob"]
+            updated_count += 1
+
+        return updated_count > 0, updated_count
+
+    async def _build_copula_matrix(
+        self,
+        rows: list[dict[str, Any]],
+        use_copula: bool,
+    ) -> np.ndarray | None:
+        """Copula 옵션이 켜져 있으면 말-말 상관행렬을 준비합니다."""
+        if not use_copula or len(rows) <= 1 or norm is None:
+            return None
+
+        rival_correlations = await self._load_rival_correlations(rows)
+        matrix = build_horse_correlation_matrix(rows, rival_correlations=rival_correlations)
+        if len(matrix) <= 1:
+            return None
+        return matrix
+
+    async def _load_rival_correlations(self, rows: list[dict[str, Any]]) -> dict[tuple[int, int], float]:
+        """rival_records에서 이번 경주 출전마끼리의 직접 대결 상관값을 한 번에 가져옵니다."""
+        if not await self._table_exists("rival_records"):
+            return {}
+
+        horse_ids = [int(row["horse_id"]) for row in rows]
+        if len(horse_ids) <= 1:
+            return {}
+
+        result = await self.db.execute(
+            text(
+                """
+                SELECT horse_id_1, horse_id_2, total_races, horse1_avg_position, horse2_avg_position
+                FROM rival_records
+                WHERE horse_id_1 IN :horse_ids
+                  AND horse_id_2 IN :horse_ids
+                """
+            ).bindparams(bindparam("horse_ids", expanding=True)),
+            {"horse_ids": horse_ids},
+        )
+
+        correlations: dict[tuple[int, int], float] = {}
+        for row in result.mappings().all():
+            total_races = int(row["total_races"] or 0)
+            if total_races < 3:
+                continue
+            pos_diff = abs(float(row["horse1_avg_position"] or 5.0) - float(row["horse2_avg_position"] or 5.0))
+            base_rho = max(0.0, 0.10 - pos_diff * 0.02)
+            confidence = min(total_races / 10.0, 1.0)
+            correlations[_ordered_horse_pair(int(row["horse_id_1"]), int(row["horse_id_2"]))] = base_rho * confidence
+
+        return correlations
 
     def _build_gate_numbers(self, rows: list[dict[str, Any]]) -> list[int]:
         """게이트 번호가 비어 있으면 1번부터 차례대로 넣어 상관 계산이 멈추지 않게 합니다."""

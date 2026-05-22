@@ -10,6 +10,8 @@ import com.racepulse.backend.domain.user.dto.RegisterRequest;
 import com.racepulse.backend.domain.user.entity.AuthProvider;
 import com.racepulse.backend.domain.user.entity.User;
 import com.racepulse.backend.domain.user.repository.UserRepository;
+import com.racepulse.backend.global.exception.BusinessException;
+import com.racepulse.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -42,7 +44,13 @@ public class AuthService {
     public AuthResponse register(RegisterRequest request) {
         // 이메일 중복 확인
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
+            throw new BusinessException(ErrorCode.EMAIL_DUPLICATE);
+        }
+
+        // 이용약관 동의는 필수입니다.
+        // DTO의 @NotNull이 누락값을 막고, 여기서는 false로 보낸 경우까지 확실히 거부합니다.
+        if (!Boolean.TRUE.equals(request.getTermsAgreed())) {
+            throw new BusinessException(ErrorCode.TERMS_NOT_AGREED);
         }
 
         // 비밀번호를 BCrypt 해시로 암호화합니다.
@@ -56,6 +64,10 @@ public class AuthService {
                 .nickname(request.getNickname())
                 .authProvider(AuthProvider.LOCAL)
                 .build();
+
+        // 마케팅 동의는 선택값이라 null이면 false로 처리합니다.
+        // 약관 동의 시각과 약관 버전은 User 엔티티의 메서드에서 한 번에 기록합니다.
+        user.agreeToTerms(Boolean.TRUE.equals(request.getMarketingAgreed()));
 
         User saved = userRepository.save(user);
         log.info("신규 이메일 회원가입. userId={}", saved.getId());

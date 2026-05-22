@@ -188,6 +188,22 @@ class CollectionScheduler:
                   id="ai_post_commentary", replace_existing=True)
 
         # -----------------------------------------------------------------------
+        # 변경사항 감지 (Phase 3 신규)
+        # 경마 당일(토/일/월) 09:00~17:00 사이 30분마다 실행합니다.
+        # 기수변경/출전취소/조교사변경/장비변경/트랙급변 5종을 감지합니다.
+        # -----------------------------------------------------------------------
+        for day in ("sat", "sun", "mon"):
+            s.add_job(
+                self.run_change_detection,
+                "cron",
+                day_of_week=day,
+                hour="9-17",    # 09:00~17:00 시간대에만 실행
+                minute="*/30",  # 30분 간격 (0분, 30분마다)
+                id=f"change_detection_{day}",
+                replace_existing=True,
+            )
+
+        # -----------------------------------------------------------------------
         # Rate Limit 카운터 리셋
         # 매일 자정 00:00 → 어제의 API 호출 카운터를 초기화합니다.
         # Redis TTL로도 자동 리셋되지만, 확실하게 명시적으로 처리합니다.
@@ -510,6 +526,42 @@ class CollectionScheduler:
                         logger.info("[AI 해설] 결과 해설 생성. race_id=%d", race_id)
                     except Exception as exc:
                         logger.error("[AI 해설] 결과 해설 실패. race_id=%d: %s", race_id, exc)
+
+    async def run_change_detection(self) -> None:
+        """
+        경마 당일 30분마다 — 변경사항 5종을 감지합니다. (Phase 3 신규)
+
+        감지 항목:
+          🔴 기수변경 / ⚫ 출전취소 / 🟠 조교사변경 / 🟡 장비변경 / 🔵 트랙급변
+
+        분산 락으로 동시 실행을 막습니다.
+        """
+        await self._run_with_guard(
+            "change_detection",
+            lock_ttl=1800,  # 최대 30분 실행 허용 (다음 실행 전까지)
+            coro_func=self._run_change_detection_impl,
+        )
+
+    async def _run_change_detection_impl(self) -> None:
+        """변경감지 실제 구현 — ChangeDetector를 호출합니다."""
+        from app.services.change_detector import ChangeDetector
+
+        today = date.today().strftime("%Y%m%d")
+        total_changes = 0
+
+        for meet_code in ALL_MEET_CODES:
+            async with AsyncSessionLocal() as session:
+                kra = KRAApiService()
+                try:
+                    detector = ChangeDetector(session, kra)
+                    changes = await detector.detect_all(rc_date=today)
+                    total_changes += len(changes)
+                except Exception as exc:
+                    logger.error("[변경감지] %s 처리 오류: %s", meet_code, exc)
+                finally:
+                    await kra.close()
+
+        logger.info("[변경감지] 오늘(%s) 총 %d건 감지", today, total_changes)
 
     async def reset_daily_counter(self) -> None:
         """매일 00:00 — 마사회 API 호출 카운터를 0으로 초기화합니다."""

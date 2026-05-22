@@ -4,6 +4,10 @@
 // react-router-dom의 NavLink = 현재 URL과 맞는 메뉴에 "활성 상태 스타일"을 주기 쉬운 링크입니다.
 import { Link, NavLink } from 'react-router-dom'
 
+// WalletHUD = 헤더에 편자(🔩)와 건초(🥇) 잔액을 표시하는 컴포넌트입니다.
+// 로그인한 유저에게만 보입니다.
+import WalletHUD from '../freemium/WalletHUD'
+
 // =============================================================================
 // Header.tsx — 모든 페이지 상단에 공통으로 보이는 헤더
 // =============================================================================
@@ -67,6 +71,10 @@ function Header() {
             </NavLink>
           ))}
         </nav>
+
+        {/* WalletHUD = 로그인된 유저의 편자/건초 잔액을 보여줍니다.
+            로그인하지 않은 경우 WalletHUD 내부에서 null을 반환해 아무것도 표시되지 않습니다. */}
+        <WalletHUD />
 
         <Link
           to="/login"

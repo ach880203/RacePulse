@@ -4,8 +4,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -55,8 +57,11 @@ public class Race {
     @Column(name = "track_type", length = 50)
     private String trackType;
 
+    // PostgreSQL enum 컬럼은 일반 문자열로 비교하면 DB에서 타입 오류가 납니다.
+    // Hibernate가 파라미터를 track_condition enum 타입으로 보내도록 전용 타입을 지정합니다.
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Enumerated(EnumType.STRING)
-    @Column(name = "track_condition", length = 20)
+    @Column(name = "track_condition", columnDefinition = "track_condition")
     private TrackCondition trackCondition;
 
     // 실제 운영 DB에서는 상금 컬럼이 bigint로 만들어져 있으므로 Long으로 맞춥니다.
@@ -69,8 +74,11 @@ public class Race {
     @Column(name = "start_time")
     private LocalTime startTime;
 
+    // PostgreSQL enum 컬럼은 일반 문자열로 비교하면 DB에서 타입 오류가 납니다.
+    // /api/v1/races?status=SCHEDULED 조회 조건도 race_status enum 타입으로 바인딩합니다.
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, columnDefinition = "race_status")
     private RaceStatus status;
 
     @Column(name = "race_class", length = 50)
@@ -83,12 +91,18 @@ public class Race {
     @Column(name = "front_count")
     private Integer frontCount;
 
+    // PostgreSQL enum 컬럼은 일반 문자열로 비교하면 DB에서 타입 오류가 납니다.
+    // 조회/저장 시 pace_scenario enum 타입으로 안전하게 주고받습니다.
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Enumerated(EnumType.STRING)
-    @Column(name = "pace_scenario", length = 20)
+    @Column(name = "pace_scenario", columnDefinition = "pace_scenario")
     private PaceScenario paceScenario;
 
+    // PostgreSQL enum 컬럼은 일반 문자열로 비교하면 DB에서 타입 오류가 납니다.
+    // 조회/저장 시 pace_advantage enum 타입으로 안전하게 주고받습니다.
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Enumerated(EnumType.STRING)
-    @Column(name = "pace_advantage", length = 20)
+    @Column(name = "pace_advantage", columnDefinition = "pace_advantage")
     private PaceAdvantage paceAdvantage;
 
     @CreationTimestamp

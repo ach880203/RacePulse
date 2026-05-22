@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
                 .getDefaultMessage();
         return ResponseEntity
                 .status(400)
-                .body(ApiResponse.error(ErrorCode.INVALID_INPUT));
+                .body(ApiResponse.error(errorMessage));
     }
 
     // 위 두 핸들러가 처리하지 못한 모든 예외의 마지막 방어선입니다.

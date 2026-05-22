@@ -82,6 +82,8 @@ public class SecurityConfig {
                                 "/api/v1/horses/**",
                                 "/api/v1/search",
                                 "/api/v1/search/**",
+                                "/api/v1/privacy",
+                                "/api/v1/terms",
                                 // 대시보드 통계와 해설은 로그인 없이 공개 조회 가능
                                 "/api/v1/dashboard/**",
                                 "/api/v1/commentary/**"
