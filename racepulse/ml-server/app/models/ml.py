@@ -196,6 +196,18 @@ class AICommentary(Base):
     prompt_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     completion_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
+    # V13 품질 컬럼입니다. 해설 품질을 숫자로 남겨두면 운영자가 낮은 품질의 해설을 빠르게 찾아 재생성할 수 있습니다.
+    quality_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    # 실제 사용한 temperature를 저장합니다. 사전 해설은 표현력이 중요하고 결과 해설은 정확성이 중요해서 서로 다른 값을 씁니다.
+    temperature_used: Mapped[Optional[Decimal]] = mapped_column(Numeric(3, 2), nullable=True)
+
+    # 금칙어가 감지되어 GPT를 다시 호출한 횟수입니다. 재시도가 많을수록 품질 점수를 낮게 보정합니다.
+    retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # GPT 응답까지 걸린 시간(ms)입니다. 응답이 느려지면 사용자 경험에 직접 영향을 주므로 운영 지표로 저장합니다.
+    generation_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

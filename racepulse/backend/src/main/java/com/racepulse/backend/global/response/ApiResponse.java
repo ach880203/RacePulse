@@ -49,4 +49,14 @@ public class ApiResponse<T> {
                 .message(errorCode.getMessage())
                 .build();
     }
+
+    // @Valid 검증 실패처럼 ErrorCode보다 더 구체적인 한글 안내가 있을 때 사용하는 메서드입니다.
+    // 응답 모양(success/data/message)은 그대로 유지하고 message만 상황에 맞게 바꿉니다.
+    public static <T> ApiResponse<T> error(String message) {
+        return ApiResponse.<T>builder()
+                .success(false)
+                .data(null)
+                .message(message)
+                .build();
+    }
 }

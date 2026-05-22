@@ -122,7 +122,9 @@ class AuthControllerTest {
                                     {
                                         "email": "test@racepulse.com",
                                         "password": "password123",
-                                        "nickname": "tester"
+                                        "nickname": "tester",
+                                        "termsAgreed": true,
+                                        "marketingAgreed": false
                                     }
                                     """))
                     .andExpect(status().isCreated())
@@ -145,7 +147,9 @@ class AuthControllerTest {
                                     {
                                         "email": "test@racepulse.com",
                                         "password": "password123",
-                                        "nickname": "tester"
+                                        "nickname": "tester",
+                                        "termsAgreed": true,
+                                        "marketingAgreed": false
                                     }
                                     """))
                     .andExpect(status().isCreated())
@@ -163,7 +167,8 @@ class AuthControllerTest {
                                     {
                                         "email": "not-an-email",
                                         "password": "password123",
-                                        "nickname": "tester"
+                                        "nickname": "tester",
+                                        "termsAgreed": true
                                     }
                                     """))
                     .andExpect(status().isBadRequest());
@@ -178,7 +183,8 @@ class AuthControllerTest {
                                     {
                                         "email": "test@racepulse.com",
                                         "password": "short",
-                                        "nickname": "tester"
+                                        "nickname": "tester",
+                                        "termsAgreed": true
                                     }
                                     """))
                     .andExpect(status().isBadRequest());
@@ -192,7 +198,8 @@ class AuthControllerTest {
                             .content("""
                                     {
                                         "email": "test@racepulse.com",
-                                        "password": "password123"
+                                        "password": "password123",
+                                        "termsAgreed": true
                                     }
                                     """))
                     .andExpect(status().isBadRequest());

@@ -5,6 +5,12 @@ package com.racepulse.backend.global.exception;
 // HTTP 상태코드와 메시지가 자동으로 응답에 담깁니다.
 public enum ErrorCode {
 
+        // 지갑
+        INSUFFICIENT_HORSESHOE(400, "편자가 부족합니다."),
+        AD_LIMIT_REACHED(429, "오늘 광고 획득 한도(10편자)에 도달했습니다."),
+        ATTENDANCE_ALREADY_DONE(409, "오늘 이미 출석했습니다."),
+        QUIZ_LIMIT_REACHED(429, "오늘 퀴즈 보상 한도(3세트)에 도달했습니다."),
+
         // 공통
         INVALID_INPUT(400, "잘못된 입력입니다."),
         INTERNAL_SERVER_ERROR(500, "서버 내부오류입니다."),
@@ -18,6 +24,7 @@ public enum ErrorCode {
         // 유저
         USER_NOT_FOUND(404, "사용자를 찾을 수 없습니다."),
         EMAIL_DUPLICATE(409, "이미 존재하는 이메일입니다."),
+        TERMS_NOT_AGREED(400, "이용약관 동의가 필요합니다."),
 
         // 경주
         RACE_NOT_FOUND(404, "경주를 찾을 수 없습니다."),
