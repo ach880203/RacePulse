@@ -1,5 +1,8 @@
 # 42. RacePulse 변경사항 FE UI 프롬프트
 
+> 이 프롬프트를 실행하기 전에 docs/PROJECT_RULES.md 파일을 먼저 읽고
+> 모든 규칙을 준수하여 코드를 작성해주세요.
+
 ---
 
 ## 📚 실행 전 필수 인식 단계 (반드시 순서대로 읽으세요)
@@ -47,11 +50,55 @@
 2. `src/components/change/ChangeSummaryCard.tsx` — 오늘의 변동사항 카드
 3. `src/components/change/ChangeTimeline.tsx` — 변경 이력 타임라인
 4. `src/api/changeApi.ts` — 변경감지 API 호출
+5. `src/hooks/useChanges.ts` — 변경사항 React Query 훅
 
 **수정:**
-5. `src/pages/race/RaceEntriesPage.tsx` — 출전표에 ChangeBadge 인라인 삽입
-6. `src/pages/HomePage.tsx` — ChangeSummaryCard 홈 상단 삽입
-7. `src/components/layout/Header.tsx` — 벨 아이콘 + 알림 배지 추가
+6. `src/pages/race/RaceEntriesPage.tsx` — 출전표에 ChangeBadge 인라인 삽입
+7. `src/pages/HomePage.tsx` — ChangeSummaryCard 홈 상단 삽입
+8. `src/components/layout/Header.tsx` — 벨 아이콘 + 알림 배지 추가
+
+---
+
+## 프로젝트 환경
+
+- **FE**: React 18 / TypeScript / Tailwind CSS v4 / Vite
+- **BE API**:
+  - `GET /api/v1/races/{raceId}/changes` → 특정 경주 변경사항 목록
+  - `GET /api/v1/races/changes/today` → 오늘 전체 변경사항 (홈 배너·벨 아이콘용)
+  - `POST /api/v1/races/{raceId}/changes/subscribe` → 변경 알림 구독 (USER 권한)
+- **상태관리**: React Query (`refetchInterval: 30분` 자동 갱신)
+- **라우팅**: React Router v6 — 경주 상세 `/races/{id}` 탭에 변경이력 추가
+- **디자인**: "Bloomberg Terminal × Premium Sports Analytics"
+- **컬러 토큰**: `brand-navy-950`(배경) / `brand-gold-400`(골드) — 하드코딩 금지 (규칙 10)
+- **폰트**: Playfair Display(브랜드) / Inter(본문) / JetBrains Mono(시간 수치)
+
+---
+
+## 현재 파일 구조 (추가/수정할 위치)
+
+```
+frontend/src/
+├── api/
+│   ├── axiosInstance.ts                   ← 공통 axios 인스턴스 (기존)
+│   └── changeApi.ts                       ← 신규 생성 ✅
+│
+├── hooks/
+│   ├── useRaces.ts                        ← 기존
+│   └── useChanges.ts                      ← 신규 생성 ✅
+│
+├── components/
+│   ├── layout/
+│   │   └── Header.tsx                     ← 수정 (벨 아이콘 + 알림 배지) ✅
+│   └── change/                            ← 신규 디렉터리 ✅
+│       ├── ChangeBadge.tsx                ← 신규 생성 ✅
+│       ├── ChangeSummaryCard.tsx           ← 신규 생성 ✅
+│       └── ChangeTimeline.tsx             ← 신규 생성 ✅
+│
+└── pages/
+    ├── HomePage.tsx                       ← 수정 (ChangeSummaryCard 삽입) ✅
+    └── race/
+        └── RaceEntriesPage.tsx            ← 수정 (ChangeBadge 인라인 삽입) ✅
+```
 
 ---
 

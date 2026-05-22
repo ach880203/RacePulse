@@ -1,5 +1,8 @@
 # 38. RacePulse 개인정보보호법 FE + 사행성 팝업 프롬프트
 
+> 이 프롬프트를 실행하기 전에 docs/PROJECT_RULES.md 파일을 먼저 읽고
+> 모든 규칙을 준수하여 코드를 작성해주세요.
+
 ---
 
 ## 📚 실행 전 필수 인식 단계 (반드시 순서대로 읽으세요)
@@ -58,6 +61,38 @@
   - `GET /api/v1/terms` → `{ version, effectiveDate, content }`
   - `GET /api/v1/user/consent` → `{ termsAgreed, termsAgreedAt, termsVersion, needsReConsent, marketingAgreed }`
   - `POST /api/v1/user/consent` → 동의 저장
+
+---
+
+## 현재 파일 구조 (추가/수정할 위치)
+
+```
+frontend/src/
+├── api/
+│   ├── axiosInstance.ts        ← 공통 axios 인스턴스 (기존)
+│   ├── authApi.ts              ← 인증 API (기존)
+│   ├── userApi.ts              ← 유저 API (기존)
+│   └── privacyApi.ts          ← 신규 생성 ✅
+│
+├── pages/
+│   ├── HomePage.tsx            ← 기존
+│   ├── user/
+│   │   └── SettingsPage.tsx    ← 기존
+│   ├── PrivacyPage.tsx         ← 신규 생성 ✅
+│   └── TermsPage.tsx           ← 신규 생성 ✅
+│
+├── components/
+│   ├── layout/
+│   │   └── Header.tsx          ← 수정 (약관 링크 추가) ✅
+│   ├── dynamic/
+│   │   └── LoadingAnimation.tsx← 기존 (재사용)
+│   └── TermsConsentModal.tsx   ← 신규 생성 ✅
+│
+├── store/
+│   └── authStore.ts            ← 기존 (로그인 상태 참고용)
+│
+└── App.tsx                     ← 수정 (라우트 + 모달 마운트) ✅
+```
 
 ---
 

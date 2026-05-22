@@ -1,5 +1,8 @@
 # 40. RacePulse 말 Stat 카드 프롬프트
 
+> 이 프롬프트를 실행하기 전에 docs/PROJECT_RULES.md 파일을 먼저 읽고
+> 모든 규칙을 준수하여 코드를 작성해주세요.
+
 ---
 
 ## 📚 실행 전 필수 인식 단계 (반드시 순서대로 읽으세요)
@@ -38,6 +41,45 @@
 2. `src/api/horseStatApi.ts` — 말 스탯 API 호출
 
 그리고 `HorseDetailPage.tsx`에 `HorseStatCard` 삽입합니다.
+
+---
+
+## 프로젝트 환경
+
+- **FE**: React 18 / TypeScript / Tailwind CSS v4 / Vite
+- **애니메이션**: CSS transition 또는 framer-motion (기존 프로젝트에 설치된 것 사용)
+- **상태관리**: React 내장 useState / useEffect
+- **디자인 철학**: "Bloomberg Terminal × Premium Sports Analytics"
+- **컬러 토큰**: `brand-navy-950`(배경) / `brand-gold-400`(골드) — 하드코딩 금지 (규칙 10)
+- **폰트**: Playfair Display(브랜드) / Inter(본문) / JetBrains Mono(수치)
+- **의존 컴포넌트**: `LockedContent` (prompt-39), `RatingRadarChart` (기존)
+
+---
+
+## 현재 파일 구조 (추가/수정할 위치)
+
+```
+frontend/src/
+├── api/
+│   ├── axiosInstance.ts              ← 공통 axios 인스턴스 (기존)
+│   ├── horseApi.ts                   ← 말 기본정보 API (기존)
+│   └── horseStatApi.ts               ← 신규 생성 ✅
+│
+├── components/
+│   ├── dynamic/
+│   │   ├── RatingRadarChart.tsx      ← 기존 (카드 뒷면 레이더 차트 재사용)
+│   │   ├── LoadingAnimation.tsx      ← 기존 (로딩 중 재사용)
+│   │   └── HorseStatCard.tsx         ← 신규 생성 ✅
+│   └── freemium/
+│       └── LockedContent.tsx         ← 기존 (prompt-39 — 잠금 오버레이 재사용)
+│
+├── pages/
+│   └── horse/
+│       └── HorseDetailPage.tsx       ← 수정 (HorseStatCard 삽입) ✅
+│
+└── types/
+    └── horse.ts                      ← 기존 (HorseStat 타입 추가 or 별도 파일)
+```
 
 ---
 
