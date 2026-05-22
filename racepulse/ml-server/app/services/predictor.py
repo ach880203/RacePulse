@@ -90,11 +90,22 @@ class PredictorService:
             )
 
         # 4. 피처 행렬 구성 (DataFrame → numpy array)
+        # scaler(또는 model)가 학습할 때 사용한 실제 피처 목록을 가져옵니다.
+        # Phase 2 이후 FEATURE_COLUMNS이 28개로 늘었지만, 저장된 모델이
+        # 23개 피처로 학습됐다면 scaler.feature_names_in_에 23개만 있습니다.
+        # 모델이 모르는 피처를 넣으면 ValueError가 발생하므로
+        # 항상 모델이 아는 피처만 사용합니다.
+        if scaler is not None and hasattr(scaler, "feature_names_in_"):
+            # 스케일러가 알고 있는 피처 목록을 우선 사용합니다.
+            effective_cols = list(scaler.feature_names_in_)
+        else:
+            effective_cols = FEATURE_COLUMNS
+
         rows = [
-            {col: rec.features.get(col) for col in FEATURE_COLUMNS}
+            {col: rec.features.get(col) for col in effective_cols}
             for rec in feature_records
         ]
-        X = pd.DataFrame(rows, columns=FEATURE_COLUMNS)
+        X = pd.DataFrame(rows, columns=effective_cols)
         # 결측값(None)을 0으로 채우고 스케일러로 변환합니다.
         X_filled = X.fillna(0.0)
         if scaler:
@@ -177,9 +188,6 @@ class PredictorService:
         if not feature_records:
             raise ValueError(f"race_id={race_id}의 피처가 없습니다.")
 
-        rows = [{col: rec.features.get(col) for col in FEATURE_COLUMNS} for rec in feature_records]
-        X = pd.DataFrame(rows, columns=FEATURE_COLUMNS).fillna(0.0)
-
         all_scores = []
 
         # 2. 각 모델 점수 계산
@@ -192,6 +200,15 @@ class PredictorService:
             except FileNotFoundError:
                 logger.warning("[앙상블] %s 모델 없음 — 건너뜀", name)
                 continue
+
+            # 모델이 학습할 때 사용한 피처만 사용합니다 (단일 예측과 동일한 호환성 처리)
+            if scaler is not None and hasattr(scaler, "feature_names_in_"):
+                effective_cols = list(scaler.feature_names_in_)
+            else:
+                effective_cols = FEATURE_COLUMNS
+
+            rows = [{col: rec.features.get(col) for col in effective_cols} for rec in feature_records]
+            X = pd.DataFrame(rows, columns=effective_cols).fillna(0.0)
 
             X_scaled = scaler.transform(X) if scaler else X.values
             raw_scores = model.predict(X_scaled).astype(float)
