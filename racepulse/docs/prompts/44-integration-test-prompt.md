@@ -1,5 +1,8 @@
 # 44. RacePulse 통합 테스트 + 코드 리뷰 프롬프트
 
+> 이 프롬프트를 실행하기 전에 docs/PROJECT_RULES.md 파일을 먼저 읽고
+> 모든 규칙을 준수하여 코드를 작성해주세요.
+
 ---
 
 ## 📚 실행 전 필수 인식 단계 (반드시 순서대로 읽으세요)
@@ -54,6 +57,47 @@ Phase 3 기능 전체를 통합 검증합니다.
 2. **핵심 플로우 E2E 테스트** — 사용자 여정 5개 흐름 검증
 3. **프로젝트 규칙 검토** — 규칙 20개 준수 여부 확인
 4. **Phase 3 완료 선언** — develop PR 작성 + v3.0.0 태그 준비
+
+---
+
+## 프로젝트 환경
+
+| 서버 | 기술 스택 | 포트 |
+|------|----------|------|
+| BE | Spring Boot / Java 21 / JPA / PostgreSQL | 8080 |
+| FE | React 18 / TypeScript / Tailwind CSS v4 / Vite | 5173 |
+| ML | FastAPI / Python 3.11 / XGBoost / LightGBM / GPT-4.1 | 8000 |
+| DB | PostgreSQL (Flyway V1~V13 / 43개 테이블) | 5432 |
+| 캐시 | Redis (피처 스토어 + AI 해설 캐시 + Pub/Sub 채널) | 6379 |
+
+- **테스트 범위**: prompt-29~43 (Phase 3 전체 16개 프롬프트)
+- **통합 기준**: 모든 서버 동시 기동 상태에서 E2E 검증
+- **완료 기준**: develop → main Squash merge + v3.0.0 태그
+
+---
+
+## 현재 파일 구조 (검증 대상 및 완료 선언 시 수정 파일)
+
+```
+racepulse/
+├── backend/                          ← BE 빌드 검증 (.\gradlew build)
+│   └── src/main/resources/
+│       └── db/migration/V13__*.sql   ← Flyway V13 마이그레이션 확인
+│
+├── frontend/                         ← FE 빌드 검증 (npm run build)
+│   └── src/                          ← 규칙 10(컬러 하드코딩) + 규칙 9(API 호출 위치) grep 검사
+│
+├── ml-server/                        ← ML 서버 기동 검증 (uvicorn)
+│   └── app/services/
+│       └── ai_commentary.py          ← Phase 3 GPT-4.1 고도화 확인
+│
+├── docs/
+│   └── horse_racing_team_v3.md       ← 수정 (Phase 3 완료 선언 + prompt 29~44 ✅ 기록) ✅
+│
+└── (git)
+    ├── develop 브랜치                 ← Phase 3 PR 생성 후 Squash merge 대상
+    └── v3.0.0 태그                    ← main merge 후 태그 push ✅
+```
 
 ---
 
@@ -231,6 +275,15 @@ git push origin v3.0.0
 - 각 E2E 플로우가 무엇을 검증하는지 설명
 - 실패 시 원인 추적 방법 설명
 - `grep -rn` 검사 명령이 무엇을 찾는지 설명
+
+---
+
+## 인코딩 주의사항 ⚠️
+
+- **BE (Java)**: 모든 `.java` 파일 **UTF-8 (BOM 없음)** — 한글 주석 깨짐 없는지 확인
+- **FE (TypeScript)**: 모든 `.ts` / `.tsx` 파일 **UTF-8 (BOM 없음)**
+- **ML (Python)**: 모든 `.py` 파일 최상단 `# -*- coding: utf-8 -*-` + **UTF-8 (BOM 없음)**
+- **SQL 마이그레이션**: `V13__*.sql` 한글 코멘트 깨짐 없는지 확인
 
 ---
 

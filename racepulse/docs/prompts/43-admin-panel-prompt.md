@@ -1,5 +1,8 @@
 # 43. RacePulse /admin 패널 프롬프트
 
+> 이 프롬프트를 실행하기 전에 docs/PROJECT_RULES.md 파일을 먼저 읽고
+> 모든 규칙을 준수하여 코드를 작성해주세요.
+
 ---
 
 ## 📚 실행 전 필수 인식 단계 (반드시 순서대로 읽으세요)
@@ -53,9 +56,40 @@
 ## 프로젝트 환경
 
 - **BE**: Spring Boot / Java 21 / JPA / PostgreSQL
-- **FE**: React 18 / TypeScript / Tailwind CSS v4
+- **FE**: React 18 / TypeScript / Tailwind CSS v4 / Vite
 - **권한**: `@PreAuthorize("hasRole('ADMIN')")` — ADMIN 유저만 접근
+- **컬러 토큰**: `brand-navy-950`(배경) / `brand-gold-400`(골드) — 하드코딩 금지 (규칙 10)
 - **디자인**: "Bloomberg Terminal × Premium Sports Analytics" 동일
+- **BE → ML 통신**: `RestTemplate` 내부 네트워크 호출 (FE가 ML 서버 직접 접근 금지)
+
+---
+
+## 현재 파일 구조 (추가/수정할 위치)
+
+```
+backend/src/main/java/com/racepulse/backend/
+├── global/
+│   └── config/SecurityConfig.java              ← 수정 (admin 경로 ADMIN 권한 추가) ✅
+└── domain/
+    └── admin/                                  ← 신규 패키지 ✅
+        ├── controller/
+        │   └── AdminController.java            ← 신규 생성 ✅
+        ├── service/
+        │   └── AdminService.java               ← 신규 생성 ✅
+        └── dto/
+            ├── CommentaryQualityResponse.java  ← 신규 생성 ✅
+            ├── ChangesStatusResponse.java      ← 신규 생성 ✅
+            ├── WalletStatsResponse.java        ← 신규 생성 ✅
+            └── SchedulerJobsResponse.java      ← 신규 생성 ✅
+
+frontend/src/
+├── pages/
+│   └── admin/
+│       └── AdminPage.tsx                       ← 신규 생성 ✅
+├── components/
+│   └── AdminRoute.tsx                          ← 신규 생성 ✅
+└── App.tsx                                     ← 수정 (admin 라우트 + AdminRoute 추가) ✅
+```
 
 ---
 
