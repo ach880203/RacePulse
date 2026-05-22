@@ -8,23 +8,12 @@
 
 import { useState } from 'react'
 
-// sessionStorage에 "배너 닫음" 상태를 저장할 때 사용하는 키
-const DISMISSED_KEY = 'maintenance_banner_dismissed'
+// isMaintenanceWarningTime은 src/utils/maintenanceTime.ts 에서 export합니다.
+// App.tsx는 해당 유틸 파일에서 직접 import합니다.
 
-// ---------------------------------------------------------------------------
-// 월요일 14:00~23:59 KST 판별
-// ---------------------------------------------------------------------------
-// sessionStorage vs localStorage 차이:
-//   sessionStorage = 브라우저 탭을 닫으면 삭제됨. 새 탭/새 창에서는 초기 상태로 돌아옴.
-//   localStorage   = 브라우저를 껐다 켜도 남아 있음. 영구 저장.
-// 배너는 "이번 세션에서는 닫았지만, 새 탭을 열면 다시 보이는" 동작이 자연스러우므로 sessionStorage 사용.
-export function isMaintenanceWarningTime(): boolean {
-  const now = new Date()
-  // KST = UTC + 9시간
-  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000)
-  // getDay() === 1 = 월요일 / getHours() >= 14 = 오후 2시 이후
-  return kst.getDay() === 1 && kst.getHours() >= 14
-}
+// sessionStorage에 "배너 닫음" 상태를 저장할 때 사용하는 키
+// sessionStorage = 브라우저 탭을 닫으면 삭제됨. 새 탭/새 창에서는 초기 상태로 돌아옴.
+const DISMISSED_KEY = 'maintenance_banner_dismissed'
 
 // ---------------------------------------------------------------------------
 // 컴포넌트

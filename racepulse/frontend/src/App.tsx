@@ -15,8 +15,10 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import IntroVideo, { INTRO_WATCHED_STORAGE_KEY } from './components/IntroVideo'
 import LoadingAnimation from './components/dynamic/LoadingAnimation'
 import PrivateRoute from './components/PrivateRoute'
-import MaintenancePage, { isMaintenanceTime } from './pages/MaintenancePage'
-import MaintenanceBanner, { isMaintenanceWarningTime } from './components/MaintenanceBanner'
+import MaintenancePage from './pages/MaintenancePage'
+import MaintenanceBanner from './components/MaintenanceBanner'
+// 점검 시간 판별 함수는 유틸 파일에서 직접 import합니다.
+import { isMaintenanceTime, isMaintenanceWarningTime } from './utils/maintenanceTime'
 
 // Lazy Loading이란?
 //   처음부터 모든 페이지 코드를 내려받지 않고, 사용자가 해당 URL에 들어갈 때 필요한 페이지 파일만 받는 방식입니다.

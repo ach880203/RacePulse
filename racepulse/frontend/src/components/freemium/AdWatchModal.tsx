@@ -90,18 +90,28 @@ function AdWatchModal({ duration, onComplete, onClose }: AdWatchModalProps) {
   }, [])
 
   // useEffect — 타이머 완료 시 건너뛰기 버튼 활성화 및 API 호출
+  // earnAdMutation.mutate는 렌더마다 새 객체이므로 ref로 최신값을 유지합니다.
+  // 이렇게 하면 deps 배열에 추가하지 않아도 항상 최신 함수를 참조합니다.
+  const earnAdMutateRef = useRef(earnAdMutation.mutate)
+  useEffect(() => {
+    earnAdMutateRef.current = earnAdMutation.mutate
+  })
+
   useEffect(() => {
     if (!isCompleted) return
 
-    // 15초 광고는 완료 즉시 건너뛰기 버튼(= 완료 버튼)이 생깁니다.
-    // 30초 이상 광고는 건너뛰기가 없으므로 자동으로 API를 호출합니다.
+    // 15초 광고: canSkip을 true로 바꿔 "완료" 버튼을 활성화합니다.
+    // 30초/60초 광고: 타이머가 끝나면 자동으로 API를 호출합니다.
     if (duration === 15) {
-      setCanSkip(true)
+      // setTimeout(fn, 0) = 현재 렌더 사이클이 끝난 직후 실행합니다.
+      // useEffect 안에서 setState를 즉시 호출하면 ESLint가 경고하므로 비동기로 처리합니다.
+      const id = setTimeout(() => setCanSkip(true), 0)
+      return () => clearTimeout(id)
     } else {
       // 30초 / 60초 광고는 타이머 끝나면 자동으로 완료 처리합니다.
-      earnAdMutation.mutate()
+      earnAdMutateRef.current()
     }
-  }, [isCompleted]) // isCompleted가 바뀔 때만 실행합니다.
+  }, [isCompleted, duration])
 
   // progress = 진행률 (0 ~ 100). 남은 시간을 전체 시간으로 나눈 후 100을 곱합니다.
   // 예: remaining=20, duration=30 → progress = (1 - 20/30) * 100 ≈ 33.3
