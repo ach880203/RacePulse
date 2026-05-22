@@ -12,6 +12,8 @@ import lombok.*;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.UUID;
 
 // @Entity = JPA가 이 클래스를 DB 테이블과 연결한다는 선언입니다.
@@ -27,6 +29,10 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class User {
+
+    // 현재 서비스 중인 약관 버전입니다.
+    // 약관 문구가 바뀌면 이 값을 올리고, 기존 유저의 termsVersion과 비교해 재동의가 필요한지 판단합니다.
+    public static final String CURRENT_TERMS_VERSION = "1.0";
 
     // @Id = 이 필드가 기본 키(PK)라는 뜻입니다.
     // @GeneratedValue(strategy = GenerationType.AUTO) = JPA가 UUID를 자동 생성합니다.
@@ -77,11 +83,41 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    // 마케팅 정보 수신 동의는 선택 항목입니다.
+    // 개인정보보호법에서는 필수 동의(서비스 이용에 꼭 필요한 항목)와 선택 동의를 분리해야 하므로 기본값은 false입니다.
+    @Builder.Default
+    @Column(name = "marketing_agreed", nullable = false)
+    private boolean marketingAgreed = false;
+
+    // OffsetDateTime은 LocalDateTime과 달리 +09:00 같은 타임존 정보를 함께 다룹니다.
+    // 동의 시각은 법적/운영 기록에 가까워서 서버 위치가 바뀌어도 같은 순간을 비교할 수 있게 타임존 포함 타입을 사용합니다.
+    @Column(name = "terms_agreed_at")
+    private OffsetDateTime termsAgreedAt;
+
+    // 유저가 어떤 버전의 약관에 동의했는지 저장합니다.
+    // 약관이 1.0에서 1.1로 올라가면 이 값과 CURRENT_TERMS_VERSION을 비교해 재동의 안내를 띄울 수 있습니다.
+    @Column(name = "terms_version", length = 10)
+    private String termsVersion;
+
     // @PrePersist = INSERT 직전에 자동으로 호출되는 메서드입니다.
     // createdAt/updatedAt 을 자동으로 채워줍니다.
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+    }
+
+    // 이용약관 동의를 기록하는 메서드입니다.
+    // 회원가입뿐 아니라 나중에 약관이 개정되어 재동의를 받을 때도 같은 로직을 재사용합니다.
+    public void agreeToTerms(boolean marketingAgreed) {
+        this.termsAgreedAt = OffsetDateTime.now(ZoneId.of("Asia/Seoul"));
+        this.termsVersion = CURRENT_TERMS_VERSION;
+        this.marketingAgreed = marketingAgreed;
+    }
+
+    // 마케팅 수신 동의만 바꾸는 메서드입니다.
+    // 약관 동의 시각은 "약관에 동의한 순간"이므로, 단순 마케팅 ON/OFF 변경 때 덮어쓰지 않습니다.
+    public void updateMarketingAgreed(boolean marketingAgreed) {
+        this.marketingAgreed = marketingAgreed;
     }
 }

@@ -11,6 +11,7 @@ package com.racepulse.backend.domain.user.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 
@@ -31,4 +32,13 @@ public class RegisterRequest {
     @NotBlank(message = "닉네임은 필수입니다.")
     @Size(min = 2, max = 50, message = "닉네임은 2~50자 사이여야 합니다.")
     private String nickname;
+
+    // @NotNull은 요청값이 아예 빠진 경우를 Controller 진입 전에 400 응답으로 막아줍니다.
+    // 이용약관 동의는 서비스 가입의 필수 조건이므로 DTO에서 먼저 검증하고, Service에서 true 여부를 한 번 더 확인합니다.
+    @NotNull(message = "이용약관 동의는 필수입니다.")
+    private Boolean termsAgreed;
+
+    // 마케팅 정보 수신 동의는 선택 항목입니다.
+    // 개인정보보호법상 필수 동의와 선택 동의를 분리해야 하므로 null이면 동의하지 않은 것으로 처리합니다.
+    private Boolean marketingAgreed;
 }

@@ -28,6 +28,10 @@ import logging
 import json
 # datetime = 생성 시각 기록에 사용합니다.
 from datetime import datetime, timedelta, date
+# Decimal = DB의 NUMERIC 컬럼에 소수 값을 안전하게 저장하기 위해 사용합니다.
+from decimal import Decimal
+# perf_counter = 서버 시간 변경의 영향을 받지 않고 GPT 응답 시간을 재기 위한 타이머입니다.
+from time import perf_counter
 # Optional = 값이 없을 수도 있는 타입 힌트입니다.
 from typing import Optional, Any
 
@@ -50,36 +54,74 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # 설정 상수
 # =============================================================================
-# 기본 GPT 모델 — 비용 효율이 좋은 gpt-4o-mini를 사용합니다.
-DEFAULT_MODEL      = "gpt-4o-mini"
+# 사전 해설은 경기 전 관전 포인트를 풍부하게 설명해야 하므로 표현력이 높은 모델을 사용합니다.
+PRE_RACE_MODEL     = "gpt-4.1"
+# 결과 해설은 실제 순위와 기록을 바탕으로 사실 전달이 중요하므로 비용과 정확성 균형이 좋은 모델을 사용합니다.
+POST_RACE_MODEL    = "gpt-4.1-mini"
+# 기존 내부 호출이 기본 모델을 기대할 수 있으므로 기본값은 사전 해설 모델로 둡니다.
+DEFAULT_MODEL      = PRE_RACE_MODEL
+# 사전 해설은 관전 포인트를 더 자연스럽게 풀어야 해서 약간 높은 temperature를 사용합니다.
+PRE_TEMPERATURE    = 0.7
+# 결과 해설은 실제 결과를 해석하므로 낮은 temperature로 일관성과 정확성을 우선합니다.
+POST_TEMPERATURE   = 0.3
 # 최대 출력 토큰 수 — 해설이 너무 길어지지 않게 제한합니다.
 MAX_TOKENS         = 1200
 # Redis 캐시 만료 시간 — 7일(초 단위). 오래된 경주 해설은 자동 삭제됩니다.
 CACHE_TTL_SECONDS  = 7 * 24 * 60 * 60
+MAX_FILTER_RETRIES = 2
+
+# 면책 문구는 모든 AI 해설 하단에 반드시 포함되어야 합니다. 품질 점수 계산에서도 이 문구가 있는지 확인합니다.
+DISCLAIMER_TEXT = "본 해설은 순수 데이터 분석 목적이며, 베팅 및 사행 행위와 무관합니다."
+
+# 금칙어는 GPT 시스템 프롬프트 1차 방어 이후, 서버에서 한 번 더 걸러내는 2차 안전장치입니다.
+FORBIDDEN_KEYWORDS = [
+    "베팅 추천",
+    "이 말에 걸어",
+    "확실한 1등",
+    "필승",
+    "무조건",
+    "사자",
+    "반드시 간다",
+    "확실한 승리",
+    "스크린샷",
+]
 
 # =============================================================================
 # 사행성 방지 시스템 프롬프트 (모든 해설에 고정 적용)
 # =============================================================================
 # 시스템 프롬프트 = GPT에게 "너의 역할과 제약"을 설명하는 첫 번째 메시지입니다.
 # 이 내용은 사용자 요청보다 우선순위가 높아, GPT가 이 규칙을 반드시 따르게 됩니다.
-SYSTEM_PROMPT = """당신은 경마 데이터 분석 전문가입니다.
-주어진 경주 데이터를 바탕으로 객관적이고 흥미로운 해설을 작성합니다.
+SYSTEM_PROMPT = """당신은 경마 전문 데이터 분석 해설위원입니다.
+스포츠 중계 해설위원의 시각으로 경마 데이터를 분석하고, 품격 있고 객관적인 해설을 작성합니다.
 
-[절대 금지 사항]
-- "베팅 추천", "이 말에 투자", "확실한 1위" 같은 사행성 표현
-- 특정 말이 반드시 이긴다는 단정적 표현
-- 개인 의견으로 포장된 투자 조언
+[분석 4단계 Chain-of-Thought]
+아래 단계로 내부 검토를 하되, 최종 답변에는 장황한 추론 과정을 그대로 노출하지 말고 자연스러운 해설로 정리합니다.
+1단계: 트랙, 날씨, 거리 등 오늘 경주 환경이 어떤 스타일의 말에게 유리한지 검토합니다.
+2단계: 출전마 현황과 각 말의 최근 폼, 기수 궁합, 컨디션 신호를 확인합니다.
+3단계: 급격한 변화나 예상하지 못한 변수, 기수 변경, 마체중, 장비 변화가 있는지 점검합니다.
+4단계: 관전 포인트와 이 경주에서 주목해야 할 시간을 정리합니다.
 
-[필수 포함 사항]
-- 모든 분석에 "데이터 기준", "통계적으로", "참고용 분석" 표현 포함
-- 해설 하단에 반드시 면책 문구 포함:
-  "본 해설은 순수 데이터 분석 목적이며, 베팅 등 사행 행위와 무관합니다."
+[금지 표현]
+- "베팅 추천", "이 말에 걸어", "확실한 1등", "필승", "사자"
+- "반드시 간다", "확실한 승리", "스크린샷"
+- 특정 말을 단정하는 표현: "A가 무조건 우승", "B는 절대 못 옴"
 
-[작성 스타일]
-- 한국어로 작성
-- 흥미롭고 읽기 쉬운 문체
-- 데이터와 통계에 근거한 객관적 분석
-- 전문 용어는 쉬운 말로 설명"""
+[필수 포함 표현]
+- "데이터 기준으로", "통계적으로", "참고용 분석으로"
+- 해설 하단 고정 면책 문구:
+  "본 해설은 순수 데이터 분석 목적이며, 베팅 및 사행 행위와 무관합니다."
+
+[Few-shot 예시 - 좋은 표현]
+- "통계적으로 이 조건에서 선행마의 3착 이내 비율은 68%였습니다."
+- "데이터 기준으로 이 기수-말 조합은 최근 10경주 TOP3 진입률이 40%입니다."
+- "이변 가능성은 있지만, 최근 컨디션 상승세가 배당률에 충분히 반영되지 않았습니다."
+
+[Few-shot 예시 - 나쁜 표현]
+- "이 말에 걸어보세요."
+- "확실한 1등 후보입니다."
+- "스크린샷으로 주목하세요."
+
+한국어로 작성하세요."""
 
 
 class AICommentaryService:
@@ -129,7 +171,12 @@ class AICommentaryService:
 
         # 3. GPT로 새 해설 생성
         prompt = self.build_pre_race_prompt(race_data)
-        content, usage = await self._call_gpt(prompt)
+        content, usage, retry_count, generation_ms, is_fallback = await self._call_gpt_with_retry(
+            prompt,
+            model=PRE_RACE_MODEL,
+            temperature=PRE_TEMPERATURE,
+        )
+        quality_score = self._calculate_quality_score(content, retry_count, is_fallback)
 
         # 4. Redis 캐시에 저장
         await self.save_to_cache(cache_key, content)
@@ -140,9 +187,13 @@ class AICommentaryService:
             commentary_type="PRE",
             content=content,
             cache_key=cache_key,
-            model_used=DEFAULT_MODEL,
+            model_used=PRE_RACE_MODEL,
             prompt_tokens=usage.get("prompt_tokens"),
             completion_tokens=usage.get("completion_tokens"),
+            quality_score=quality_score,
+            temperature_used=PRE_TEMPERATURE,
+            retry_count=retry_count,
+            generation_ms=generation_ms,
         )
 
         logger.info("[AI 해설] 사전 해설 생성 완료. race_id=%d, 토큰=%s", race_id, usage)
@@ -151,6 +202,9 @@ class AICommentaryService:
             "source": "gpt",
             "cache_key": cache_key,
             "usage": usage,
+            "qualityScore": quality_score,
+            "retryCount": retry_count,
+            "generationMs": generation_ms,
         }
 
     async def generate_post_race_commentary(self, race_id: int) -> dict[str, Any]:
@@ -178,7 +232,12 @@ class AICommentaryService:
             return {"content": existing.content, "source": "db", "cache_key": cache_key}
 
         prompt = self.build_post_race_prompt(race_data, result_data)
-        content, usage = await self._call_gpt(prompt)
+        content, usage, retry_count, generation_ms, is_fallback = await self._call_gpt_with_retry(
+            prompt,
+            model=POST_RACE_MODEL,
+            temperature=POST_TEMPERATURE,
+        )
+        quality_score = self._calculate_quality_score(content, retry_count, is_fallback)
 
         await self.save_to_cache(cache_key, content)
         await self.save_to_db(
@@ -186,13 +245,25 @@ class AICommentaryService:
             commentary_type="POST",
             content=content,
             cache_key=cache_key,
-            model_used=DEFAULT_MODEL,
+            model_used=POST_RACE_MODEL,
             prompt_tokens=usage.get("prompt_tokens"),
             completion_tokens=usage.get("completion_tokens"),
+            quality_score=quality_score,
+            temperature_used=POST_TEMPERATURE,
+            retry_count=retry_count,
+            generation_ms=generation_ms,
         )
 
         logger.info("[AI 해설] 결과 해설 생성 완료. race_id=%d", race_id)
-        return {"content": content, "source": "gpt", "cache_key": cache_key, "usage": usage}
+        return {
+            "content": content,
+            "source": "gpt",
+            "cache_key": cache_key,
+            "usage": usage,
+            "qualityScore": quality_score,
+            "retryCount": retry_count,
+            "generationMs": generation_ms,
+        }
 
     # =========================================================================
     # 프롬프트 조립 메서드
@@ -308,6 +379,10 @@ class AICommentaryService:
         model_used: str = DEFAULT_MODEL,
         prompt_tokens: Optional[int] = None,
         completion_tokens: Optional[int] = None,
+        quality_score: Optional[int] = None,
+        temperature_used: Optional[float] = None,
+        retry_count: int = 0,
+        generation_ms: Optional[int] = None,
     ) -> AICommentary:
         """해설을 ai_commentary 테이블에 저장합니다.
 
@@ -321,6 +396,10 @@ class AICommentaryService:
             existing.cache_key         = cache_key
             existing.prompt_tokens     = prompt_tokens
             existing.completion_tokens = completion_tokens
+            existing.quality_score     = quality_score
+            existing.temperature_used  = Decimal(str(temperature_used)) if temperature_used is not None else None
+            existing.retry_count       = retry_count
+            existing.generation_ms     = generation_ms
             existing.generated_at      = datetime.now()
             await self.db.commit()
             return existing
@@ -333,6 +412,10 @@ class AICommentaryService:
             cache_key         = cache_key,
             prompt_tokens     = prompt_tokens,
             completion_tokens = completion_tokens,
+            quality_score     = quality_score,
+            temperature_used  = Decimal(str(temperature_used)) if temperature_used is not None else None,
+            retry_count       = retry_count,
+            generation_ms     = generation_ms,
         )
         self.db.add(record)
         await self.db.commit()
@@ -342,7 +425,12 @@ class AICommentaryService:
     # 내부 헬퍼 메서드
     # =========================================================================
 
-    async def _call_gpt(self, user_prompt: str) -> tuple[str, dict]:
+    async def _call_gpt(
+        self,
+        user_prompt: str,
+        model: str = PRE_RACE_MODEL,
+        temperature: float = PRE_TEMPERATURE,
+    ) -> tuple[str, dict]:
         """OpenAI API를 호출하여 해설 텍스트를 생성합니다.
 
         messages 구조:
@@ -353,13 +441,14 @@ class AICommentaryService:
         user 메시지   = 실제 분석 요청 내용
         """
         response = await self.openai.chat.completions.create(
-            model=DEFAULT_MODEL,
+            model=model,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user",   "content": user_prompt},
             ],
             max_tokens=MAX_TOKENS,
-            temperature=0.7,  # 0 = 항상 같은 답, 1 = 창의적인 답. 0.7 = 균형
+            # temperature는 해설 종류별로 다르게 씁니다. 사전 해설은 표현력, 결과 해설은 사실 일관성이 더 중요합니다.
+            temperature=temperature,
         )
 
         content = response.choices[0].message.content or ""
@@ -368,6 +457,83 @@ class AICommentaryService:
             "completion_tokens": response.usage.completion_tokens if response.usage else None,
         }
         return content, usage
+
+    async def _check_and_filter(self, content: str) -> tuple[str, bool]:
+        """생성된 해설에서 사행성 표현을 검사합니다.
+
+        시스템 프롬프트가 1차 안전장치라면, 이 함수는 서버에서 결과물을 다시 확인하는 2차 안전장치입니다.
+        @return (content, is_clean)
+          is_clean=True  금칙어가 없어 그대로 사용합니다.
+          is_clean=False 금칙어가 있어 GPT 재시도가 필요합니다.
+        """
+        for keyword in FORBIDDEN_KEYWORDS:
+            if keyword in content:
+                logger.warning("[사행성 필터] 금칙어 감지: '%s'", keyword)
+                return content, False
+        return content, True
+
+    async def _call_gpt_with_retry(
+        self,
+        user_prompt: str,
+        model: str,
+        temperature: float,
+        max_retries: int = MAX_FILTER_RETRIES,
+    ) -> tuple[str, dict, int, int, bool]:
+        """사행성 필터를 통과할 때까지 GPT 호출을 재시도합니다.
+
+        재시도 횟수와 생성 시간을 함께 반환하는 이유는 운영자가 해설 품질을 숫자로 모니터링할 수 있게 하기 위해서입니다.
+        @return (content, usage, retry_count, generation_ms, is_fallback)
+        """
+        start = perf_counter()
+
+        for attempt in range(max_retries + 1):
+            content, usage = await self._call_gpt(user_prompt, model, temperature)
+            content, is_clean = await self._check_and_filter(content)
+
+            if is_clean:
+                generation_ms = int((perf_counter() - start) * 1000)
+                return content, usage, attempt, generation_ms, False
+
+            if attempt < max_retries:
+                logger.info("[사행성 필터] %d차 재시도합니다.", attempt + 1)
+
+        logger.error("[사행성 필터] %d회 재시도 초과. fallback 템플릿을 사용합니다.", max_retries)
+        generation_ms = int((perf_counter() - start) * 1000)
+        return self._get_fallback_template(), {}, max_retries, generation_ms, True
+
+    def _get_fallback_template(self) -> str:
+        """GPT 재시도 초과 시 사용하는 안전한 기본 해설입니다."""
+        return (
+            "이번 경주의 데이터 분석 해설을 일시적으로 제공하지 못했습니다.\n"
+            "출전마 정보는 경주 상세 페이지에서 확인해 주세요.\n\n"
+            f"{DISCLAIMER_TEXT}"
+        )
+
+    def _calculate_quality_score(
+        self,
+        content: str,
+        retry_count: int,
+        is_fallback: bool,
+    ) -> int:
+        """AI 해설 품질을 0~100점으로 계산합니다.
+
+        quality_score가 필요한 이유는 낮은 품질의 해설을 운영자가 빠르게 찾아 재생성하거나 원인을 추적하기 위해서입니다.
+        """
+        if is_fallback:
+            return 10
+
+        score = 100
+        score -= retry_count * 20
+
+        # 면책 문구가 빠지면 서비스 정책 위반 가능성이 있으므로 품질 점수를 낮춥니다.
+        if DISCLAIMER_TEXT not in content:
+            score -= 15
+
+        # 너무 짧은 해설은 실제 분석보다 요약에 가깝기 때문에 정보량 부족으로 판단합니다.
+        if len(content) < 300:
+            score -= 20
+
+        return max(0, min(100, score))
 
     async def _get_race_data(self, race_id: int) -> Optional[dict[str, Any]]:
         """경주와 출전마 정보를 한꺼번에 조회합니다."""

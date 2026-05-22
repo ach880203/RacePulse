@@ -1,6 +1,10 @@
 spring:
   application:
     name: RacePulse
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
   profiles:
     active: dev  # 개발할 때는 dev, 배포할 때는 prod로 변경
 
