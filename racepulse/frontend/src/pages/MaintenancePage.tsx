@@ -7,18 +7,8 @@
 
 import { useEffect, useState } from 'react'
 
-// ---------------------------------------------------------------------------
-// 화요일 02:00~06:00 KST 판별
-// ---------------------------------------------------------------------------
-// getDay() 반환값: 0=일요일, 1=월요일, 2=화요일, 3=수요일, 4=목요일, 5=금요일, 6=토요일
-// KST = UTC + 9시간 (9 * 60 * 60 * 1000 밀리초)
-export function isMaintenanceTime(): boolean {
-  const now = new Date()
-  // UTC 기준 now에 9시간을 더해 KST 시각을 구합니다.
-  // 예: UTC 17:30 → KST 02:30
-  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000)
-  return kst.getDay() === 2 && kst.getHours() >= 2 && kst.getHours() < 6
-}
+// isMaintenanceTime은 src/utils/maintenanceTime.ts 에서 export합니다.
+// App.tsx는 해당 유틸 파일에서 직접 import합니다.
 
 // 오전 6:00 KST까지 남은 시간을 밀리초로 계산합니다.
 function getRemainingMs(): number {

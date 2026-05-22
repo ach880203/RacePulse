@@ -170,9 +170,9 @@ function CounterfactualUI({ predictions }: CounterfactualUIProps) {
     }
   }, [initialAdjustments, runWorkerSimulation])
 
-  useEffect(() => {
-    setAdjustments(initialAdjustments)
-  }, [initialAdjustments])
+  // initialAdjustments(부모에서 내려온 초기값)이 바뀌면 내부 슬라이더 상태를 동기화합니다.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setAdjustments(initialAdjustments) }, [initialAdjustments])
 
   const scheduleSimulation = (nextAdjustments: AdjustmentMap) => {
     if (debounceTimerRef.current != null) {
