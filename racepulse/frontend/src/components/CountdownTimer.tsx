@@ -23,11 +23,14 @@ interface Props {
 }
 
 /**
- * "HH:MM" 형식의 시각과 "YYYY-MM-DD" 날짜를 합쳐서 Date 객체로 변환합니다.
+ * "HH:MM" 또는 "HH:MM:SS" 형식의 시각과 "YYYY-MM-DD" 날짜를 합쳐서 Date 객체로 변환합니다.
+ * BE에서 LocalTime이 "HH:MM:SS" 형식으로 올 수 있으므로 "HH:MM"으로 정규화합니다.
  */
 function buildTargetDate(rcDate: string, targetTime: string): Date {
-  // "2026-05-11" + "T" + "11:00" + ":00" → new Date("2026-05-11T11:00:00")
-  return new Date(`${rcDate}T${targetTime}:00`)
+  // "11:00:00" → "11:00" (앞 5자리만 사용)
+  // "11:00" → "11:00" (그대로)
+  const normalizedTime = targetTime.slice(0, 5)
+  return new Date(`${rcDate}T${normalizedTime}:00`)
 }
 
 /**
