@@ -86,22 +86,25 @@ public class RaceService {
             throw new BusinessException(ErrorCode.RACE_NOT_FOUND);
         }
 
+        // PostgreSQL은 따옴표 없는 별칭을 소문자로 변환합니다.
+        // FE가 camelCase(horseName, gateNo 등)를 기대하므로 큰따옴표로 대소문자를 보존합니다.
         return jdbcTemplate.queryForList(
                 """
                 SELECT
-                    re.id                  AS id,
-                    re.race_id             AS raceId,
-                    re.horse_id            AS horseId,
-                    h.name                 AS horseName,
-                    h.eng_name             AS horseEngName,
-                    re.gate_no             AS gateNo,
-                    re.jockey_id           AS jockeyId,
-                    j.name                 AS jockeyName,
-                    re.trainer_id          AS trainerId,
-                    t.name                 AS trainerName,
-                    re.horse_weight        AS weight,
-                    re.burden_weight       AS burden,
-                    re.odds_win            AS odds
+                    re.id                  AS "id",
+                    re.race_id             AS "raceId",
+                    re.horse_id            AS "horseId",
+                    h.name                 AS "horseName",
+                    h.eng_name             AS "horseEngName",
+                    re.gate_no             AS "gateNo",
+                    re.jockey_id           AS "jockeyId",
+                    j.name                 AS "jockeyName",
+                    re.trainer_id          AS "trainerId",
+                    t.name                 AS "trainerName",
+                    re.horse_weight        AS "weight",
+                    re.burden_weight       AS "burden",
+                    re.odds_win            AS "odds",
+                    re.data_status         AS "dataStatus"
                 FROM race_entries re
                 LEFT JOIN horses   h ON h.id = re.horse_id
                 LEFT JOIN jockeys  j ON j.id = re.jockey_id
@@ -120,22 +123,24 @@ public class RaceService {
      * V9 마이그레이션 기준 컬럼명: rank, record_time, margin, final_odds, horse_id
      */
     public List<Map<String, Object>> getRaceResult(Long raceId) {
-        if (!raceRepository.existsById(raceId)) {
+        // @NonNull 경고 방지: raceId가 null이면 404로 처리합니다.
+        if (raceId == null || !raceRepository.existsById(raceId)) {
             throw new BusinessException(ErrorCode.RACE_NOT_FOUND);
         }
 
+        // PostgreSQL camelCase 보존을 위해 큰따옴표로 별칭을 감쌉니다.
         return jdbcTemplate.queryForList(
                 """
                 SELECT
-                    rr.id                  AS id,
-                    rr.race_id             AS raceId,
-                    rr.horse_id            AS horseId,
-                    h.name                 AS horseName,
-                    re.gate_no             AS gateNo,
-                    rr.rank                AS finishOrder,
-                    rr.record_time         AS finishTime,
-                    rr.final_odds          AS finalOdds,
-                    j.name                 AS jockeyName
+                    rr.id                  AS "id",
+                    rr.race_id             AS "raceId",
+                    rr.horse_id            AS "horseId",
+                    h.name                 AS "horseName",
+                    re.gate_no             AS "gateNo",
+                    rr.rank                AS "finishOrder",
+                    rr.record_time         AS "finishTime",
+                    rr.final_odds          AS "finalOdds",
+                    j.name                 AS "jockeyName"
                 FROM race_results rr
                 LEFT JOIN horses       h  ON h.id  = rr.horse_id
                 LEFT JOIN race_entries re ON re.id = rr.race_entry_id
