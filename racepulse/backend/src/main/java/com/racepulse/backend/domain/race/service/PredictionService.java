@@ -80,7 +80,11 @@ public class PredictionService {
             response = restTemplate.getForObject(url, Map.class);
         } catch (Exception exception) {
             // 저장된 결과가 없으면 ML 서버에 한 번 생성 요청을 보낸 뒤 다시 조회합니다.
-            restTemplate.postForObject(mlServerUrl + "/ml/simulate/" + raceId, null, Map.class);
+            // 4차 회의 확정: 70,000회 Adaptive 시뮬레이션 (CI ±0.5% 수렴 시 조기 중단)
+            restTemplate.postForObject(
+                mlServerUrl + "/ml/simulate/" + raceId + "?n_simulations=70000",
+                null, Map.class
+            );
             response = restTemplate.getForObject(url, Map.class);
         }
 
