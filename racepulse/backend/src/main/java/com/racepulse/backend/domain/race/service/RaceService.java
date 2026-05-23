@@ -101,7 +101,7 @@ public class RaceService {
                     t.name                 AS trainerName,
                     re.horse_weight        AS weight,
                     re.burden_weight       AS burden,
-                    re.win_odds            AS odds
+                    re.odds_win            AS odds
                 FROM race_entries re
                 LEFT JOIN horses   h ON h.id = re.horse_id
                 LEFT JOIN jockeys  j ON j.id = re.jockey_id
