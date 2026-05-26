@@ -303,6 +303,47 @@
 
 ---
 
+### [날짜: 2026-05-23~26] 16차 작업 세션 — 에러 수정 + 실데이터 점검
+- **참석**: 창현님
+
+#### 완료 작업
+
+| 구분 | 작업 | 결과 |
+|------|------|------|
+| GIT | v3.0.0 태그 push | main ← develop Squash merge + v3.0.0 tag |
+| FE | ESLint 에러 4개 수정 (PR #11) | Fast Refresh / setState-in-effect |
+| ML | predictor.py 피처 불일치 수정 (PR #12) | scaler.feature_names_in_ 기반 호환성 처리 |
+| BE | GlobalExceptionHandler 로깅 추가 | 500 에러 원인 콘솔 출력 |
+| FE | OptimizedEChart CJS 인터롭 수정 | 대시보드 차트 정상 표시 |
+| BE | race_entries.win_odds → odds_win 컬럼명 수정 | 출전 명단 500 → 정상 |
+| BE | SQL 별칭 큰따옴표 처리 | PostgreSQL camelCase 보존 → 이름/기수/조교사 정상 표시 |
+| ML | Monte Carlo 기본값 10,000 → **70,000** | 4차 회의 확정값 반영 |
+| BE | SecurityConfig /api/v1/weather/** 공개 경로 추가 | 날씨 403 → 정상 |
+| FE | CountdownTimer startTime 정규화 | NaN:NaN:NaN → 정상 카운트다운 |
+| FE | 몬테카를로 탭 실데이터 연결 (PR #13) | usePredictionSimulation + 말별 확률 막대 표시 |
+| DATA | 5/23·5/24 출전표 수집 | SC/JJ 5/23, SC/BU 5/24 (각 경마장 당일 수집) |
+| DATA | 34개 경주 예측 생성 | 배치 스크립트로 전체 완료 |
+| DOCS | V1~V13 마이그레이션 vs 코드 전수 점검 | 이상 없음 (win_odds 건 이미 수정) |
+
+#### FE-BE 연결 현황 확인
+- **완전 구현**: 13개 화면 (경주/예측/대시보드/마이페이지 등) ✅
+- **Placeholder (API 준비됨)**: 6개 (로그인·회원가입·AI해설·경주결과·경주마목록·경마장목록)
+- **미구현**: 3개 (경주마이력·경마장상세·주간대시보드)
+
+#### 커밋 내역
+```
+fix: race_entries.win_odds → odds_win 컬럼명 수정 (V7 마이그레이션 반영)
+fix: SQL 별칭 큰따옴표 처리 — PostgreSQL camelCase 보존으로 출전명단 정상 표시
+fix: Monte Carlo 기본 시뮬레이션 횟수 10,000 → 70,000으로 변경
+fix: UI 3종 수정 — 날씨 403 / NaN 카운트다운 / 몬테카를로 실데이터 표시
+```
+
+#### 남은 PR
+- **PR #12** (런타임 에러 수정): develop에 머지 완료
+- **PR #13** (UI 3종): develop 머지 대기 중
+
+---
+
 ### [날짜: 2026-05-22] Phase 3 완료 선언
 
 | 조건 | 상태 |
