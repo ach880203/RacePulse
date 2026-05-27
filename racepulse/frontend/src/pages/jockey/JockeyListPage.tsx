@@ -4,7 +4,7 @@
 // =============================================================================
 
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import Layout from '../../components/layout/Layout'
 import { useJockeys } from '../../hooks/usePersons'
 
@@ -22,10 +22,16 @@ const MEET_LABELS: Record<string, string> = {
 }
 
 function JockeyListPage() {
-  const [searchInput, setSearchInput] = useState('')
-  const [nameQuery, setNameQuery]     = useState('')
-  const [meetCode, setMeetCode]       = useState('')
-  const [page, setPage]               = useState(0)
+  // URL 쿼리 파라미터로 필터 상태를 관리합니다.
+  // 뒤로가기 시 브라우저가 URL을 복원하므로 필터 상태가 그대로 유지됩니다.
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const nameQuery = searchParams.get('name') ?? ''
+  const meetCode  = searchParams.get('meetCode') ?? ''
+  const page      = Number(searchParams.get('page') ?? '0')
+
+  // 입력 중인 텍스트는 로컬 state로 관리하고, 검색 버튼 클릭 시에만 URL에 반영합니다.
+  const [searchInput, setSearchInput] = useState(nameQuery)
 
   const { data, isLoading, isError } = useJockeys({
     name:     nameQuery || undefined,
@@ -36,13 +42,19 @@ function JockeyListPage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    setNameQuery(searchInput.trim())
-    setPage(0)
+    setSearchParams((prev) => {
+      prev.set('name', searchInput.trim())
+      prev.set('page', '0')
+      return prev
+    })
   }
 
   const handleMeetCodeChange = (code: string) => {
-    setMeetCode(code)
-    setPage(0)
+    setSearchParams((prev) => {
+      prev.set('meetCode', code)
+      prev.set('page', '0')
+      return prev
+    })
   }
 
   return (
@@ -183,7 +195,7 @@ function JockeyListPage() {
             <button
               type="button"
               disabled={page === 0}
-              onClick={() => setPage((p) => p - 1)}
+              onClick={() => setSearchParams((prev) => { prev.set('page', String(Math.max(0, page - 1))); return prev })}
               className="rounded-full border border-white/10 px-4 py-2 text-sm text-white/60 transition hover:bg-white/8 disabled:opacity-30"
             >
               이전
@@ -194,7 +206,7 @@ function JockeyListPage() {
             <button
               type="button"
               disabled={page + 1 >= data.totalPages}
-              onClick={() => setPage((p) => p + 1)}
+              onClick={() => setSearchParams((prev) => { prev.set('page', String(Math.min(data.totalPages - 1, page + 1))); return prev })}
               className="rounded-full border border-white/10 px-4 py-2 text-sm text-white/60 transition hover:bg-white/8 disabled:opacity-30"
             >
               다음
