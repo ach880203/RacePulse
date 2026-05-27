@@ -141,7 +141,12 @@ function RacePredictionPage() {
   const { data: race, isLoading: raceLoading, isError: raceError } = useRace(id)
   const { data: prediction, isLoading: predictionLoading, isError: predictionError } = usePrediction(id)
   // 몬테카를로 탭 진입 시에만 시뮬레이션 결과를 가져옵니다 (불필요한 API 호출 방지).
-  const { data: simulation } = usePredictionSimulation(activeTab === '몬테카를로상세' ? id : undefined)
+  // isLoading/isError를 함께 받아야 "계산 중..." 상태가 무한히 표시되는 현상을 막을 수 있습니다.
+  const {
+    data: simulation,
+    isLoading: simulationLoading,
+    isError: simulationError,
+  } = usePredictionSimulation(activeTab === '몬테카를로상세' ? id : undefined)
 
   useEffect(() => {
     if (!prediction?.predictions?.length) {
@@ -331,11 +336,26 @@ function RacePredictionPage() {
                   여러 번의 가상 경주를 반복해 각 말의 우승 가능성과 예상 순위 흐름을 비교합니다.
                 </p>
 
-                {/* 시뮬레이션 결과 로딩 중 */}
-                {!simulation && (
+                {/* 로딩 중: ML 서버가 시뮬레이션을 실행하는 동안 애니메이션 표시 */}
+                {simulationLoading && (
                   <div className="mt-5">
                     <SimulationAnimation running={true} />
                     <p className="mt-3 text-center text-xs text-white/40">시뮬레이션 계산 중...</p>
+                  </div>
+                )}
+
+                {/* 오류: ML 서버 다운 또는 해당 경주 시뮬레이션 데이터 없음 */}
+                {!simulationLoading && simulationError && (
+                  <div className="mt-5 rounded-2xl border border-red-400/20 bg-red-400/5 px-5 py-8 text-center">
+                    <p className="text-sm text-red-400">시뮬레이션 데이터를 불러오지 못했습니다.</p>
+                    <p className="mt-1 text-xs text-white/40">ML 서버 연결 상태를 확인해주세요.</p>
+                  </div>
+                )}
+
+                {/* 데이터 없음: 응답은 왔지만 시뮬레이션 결과가 비어 있는 경우 */}
+                {!simulationLoading && !simulationError && !simulation && (
+                  <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 px-5 py-8 text-center">
+                    <p className="text-sm text-white/50">이 경주의 시뮬레이션 데이터가 없습니다.</p>
                   </div>
                 )}
 
@@ -384,9 +404,12 @@ function RacePredictionPage() {
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <p className="text-xs text-white/45">시뮬레이션 횟수</p>
                     <p className="mt-2 font-semibold text-white">
-                      {simulation?.nSimulations != null
-                        ? `${simulation.nSimulations.toLocaleString()}회`
-                        : '계산 중...'}
+                      {/* 로딩 중에만 "계산 중..." 표시 — 오류/데이터 없음 상태는 "-"로 구분 */}
+                      {simulationLoading
+                        ? '계산 중...'
+                        : simulation?.nSimulations != null
+                          ? `${simulation.nSimulations.toLocaleString()}회`
+                          : '-'}
                     </p>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">

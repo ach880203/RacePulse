@@ -257,10 +257,11 @@
 | Phase 1 | 수집파이프라인 / BE뼈대 / FE라우팅 | ✅ 2026-05-14 |
 | Phase 2 | ML예측 / Monte Carlo / 시각화 대시보드 | ✅ 2026-05-15 |
 | Phase 3 | AI해설 / Bayesian MC / Freemium / 편자 | ✅ 2026-05-22 |
-| **Phase 4** | **Docker 복구 + API 완성 + 화면 완성 + 운영 품질** | 진행 중 |
-| Phase 5 | 미니게임 (다마고치 + 퀴즈 + 토너먼트 + 상점) | 예정 |
-| Phase 6 | AWS 배포 + CI/CD + 부하테스트 (Terraform) | 예정 |
-| Phase 7 | README + 포트폴리오 문서화 | 최종 |
+| **Phase 4** | **Docker 복구 + API 완성 + Placeholder 11개 + 버그수정 + 품질** | 진행 중 |
+| **Phase 5** | **UI/UX 전면 개선 (모바일 + 시각언어 + 애니메이션 + 데이터 밀도)** | 예정 |
+| Phase 6 | 미니게임 (다마고치 + 퀴즈 + 토너먼트 + 상점) | 예정 |
+| Phase 7 | AWS 배포 + CI/CD + 부하테스트 (Terraform) | 예정 |
+| Phase 8 | README + 포트폴리오 문서화 | 최종 |
 
 ---
 
@@ -289,96 +290,201 @@
 
 ---
 
-## 🔴 Phase 4 작업 목록 (우선순위 순)
+## 🔴 Phase 4 작업 목록 (우선순위 순) — 총 35개
 
-> 작업 순서 원칙: Docker 복구 → API 구현 → 화면 구현 → 운영 품질
-> (화면보다 API를 먼저 해야 화면 구현 시 뜯지 않아도 됨)
+> 작업 순서 원칙: 버그수정 → Docker 복구 → API 구현 → 화면 구현 → 운영 품질
+> API를 먼저 완성해야 화면 구현 시 재작업 없음
 
-### 4-1. Docker 실행 재현성 복구 🔴 (최우선)
+### 4-0. 버그 수정 🔴 (즉시 처리)
+
+| # | 작업 | 원인 | 파일 | 상태 |
+|---|------|------|------|------|
+| 1 | `DataStatusBadge` `COLLECTED` → "수집 완료" 수정 | FE에서 완료 상태를 "수집 중"으로 잘못 표기 + 깜빡임 | `DataStatusBadge.tsx` | ✅ 완료 |
+| 2 | 몬테카를로 "계산 중..." 영구 표시 수정 | `isLoading/isError` 미분기 → API 오류 시 무한 표시 | `RacePredictionPage.tsx` | ✅ 완료 |
+
+### 4-1. Docker 실행 재현성 복구 🔴 (최우선 블로커)
 
 | # | 작업 | 현재 문제 | 파일 |
 |---|------|---------|------|
-| 1 | ML Dockerfile 이미지명 수정 | `python=:3.11-slim` 오타 → 빌드 실패 | `racepulse/ml-server/Dockerfile` |
-| 2 | ML Compose DB URL 수정 | `postgresql://` → `postgresql+asyncpg://` | `racepulse/docker-compose.yml` |
-| 3 | BE Dockerfile 작성 + Compose 실제 앱 연결 | 현재 임시 이미지(`eclipse-temurin:21-jre`) — 앱 없음 | `racepulse/docker-compose.yml` |
+| 3 | ML Dockerfile 이미지명 수정 | `python=:3.11-slim` 오타 → 빌드 실패 | `ml-server/Dockerfile` |
+| 4 | ML Compose DB URL 수정 | `postgresql://` → `postgresql+asyncpg://` | `docker-compose.yml` |
+| 5 | BE Dockerfile 작성 + Compose 실제 앱 연결 | 임시 이미지(`eclipse-temurin:21-jre`) — 앱 없음 | `docker-compose.yml` |
 
 ### 4-2. BE API 구현 🔴
 
 | # | 작업 | 현재 상태 |
 |---|------|---------|
-| 4 | `GET /horses/{id}` 구현 | 500 (컨트롤러 없음) |
-| 5 | `GET /jockeys/{id}` 구현 + SecurityConfig 공개 허용 | 403 (컨트롤러 없음) |
-| 6 | `GET /trainers/{id}` 구현 + SecurityConfig 공개 허용 | 403 (컨트롤러 없음) |
-| 7 | `GET /racecourses/{meetCode}` 구현 | 500 (컨트롤러 없음) |
-| 8 | `/races/upcoming` 500 수정 | 쿼리 오류 |
-| 9 | `/races/results` 500 수정 | 쿼리 오류 |
-| 10 | `/dashboard/weekly` 500 수정 | 집계 쿼리 오류 |
-| 11 | `/home` 403 수정 | SecurityConfig 공개 경로 누락 |
-| 12 | FastAPI 스케줄러 상태 API 수정 | 별도 인스턴스 생성 → 항상 `running: false` |
+| 6 | SecurityConfig 공개 경로 추가 (`/home` `/jockeys/{id}` `/trainers/{id}`) | 403 |
+| 7 | `GET /horses/{id}` 구현 + 없을 때 404 반환 | 500 |
+| 8 | `GET /jockeys/{id}` 컨트롤러 구현 | 403 |
+| 9 | `GET /trainers/{id}` 컨트롤러 구현 | 403 |
+| 10 | `GET /racecourses/{meetCode}` 컨트롤러 구현 | 500 |
+| 11 | `/races/upcoming` 쿼리 오류 수정 | 500 |
+| 12 | `/races/results` 쿼리 오류 수정 | 500 |
+| 13 | `/dashboard/weekly` 집계 쿼리 수정 | 500 |
+| 14 | FastAPI 스케줄러 상태 API 실제 인스턴스 참조 수정 | 항상 false |
+| 15 | 수동 수집 API 추가 `POST /admin/collection/trigger/entries` (출전표) | 신규 |
+| 16 | 수동 수집 API 추가 `POST /admin/collection/trigger/results` (경기 결과) | 신규 |
+| 17 | 수동 수집 상태 조회 `GET /admin/collection/trigger/status` | 신규 |
 
 ### 4-3. FE Placeholder 화면 구현 🟡
 
-| # | 화면 | 경로 | 비고 |
-|---|------|------|------|
-| 13 | 로그인 | `/login` | PrivateRoute가 여기로 리다이렉트 중 |
-| 14 | 회원가입 | `/register` | |
-| 15 | 카카오 OAuth 콜백 | `/auth/kakao/callback` | |
-| 16 | 경주 결과 | `/races/:raceId/result` | API 200, 화면만 없음 |
-| 17 | AI 해설 | `/races/:raceId/commentary` | API 200, 화면만 없음 |
-| 18 | 경주마 목록 | `/horses` | DB 10,574마리 있음 |
-| 19 | 경주마 성적 이력 | `/horses/:horseId/history` | |
-| 20 | 경마장 목록 | `/racecourses` | |
-| 21 | 경마장 상세 | `/racecourses/:meetCode` | |
-| 22 | 관리자 대시보드 | `/admin` | |
-| 23 | 수집 현황 | `/admin/collection` | |
+| # | 화면 | 경로 | 긴급도 |
+|---|------|------|--------|
+| 18 | 로그인 | `/login` | 🔴 PrivateRoute 전제 |
+| 19 | 회원가입 | `/register` | 🔴 |
+| 20 | 카카오 OAuth 콜백 | `/auth/kakao/callback` | 🔴 |
+| 21 | 경주 결과 | `/races/:raceId/result` | 🔴 API 이미 200 |
+| 22 | AI 해설 | `/races/:raceId/commentary` | 🔴 API 이미 200 |
+| 23 | 경주마 목록 | `/horses` | 🟡 DB 10,574마리 |
+| 24 | 경주마 성적 이력 | `/horses/:horseId/history` | 🟡 |
+| 25 | 경마장 목록 | `/racecourses` | 🟡 |
+| 26 | 경마장 상세 | `/racecourses/:meetCode` | 🟡 |
+| 27 | 관리자 대시보드 | `/admin` | 🟡 |
+| 28 | 수집 현황 + **수동 수집 버튼** | `/admin/collection` | 🟡 |
+
+**수집 현황 페이지 수동 수집 버튼 스펙**:
+- [출전표 수집] → `POST /admin/collection/trigger/entries`
+- [경기 결과 수집] → `POST /admin/collection/trigger/results`
+- [전체 수집] → 두 API 순차 호출
+- 실행 중 버튼 비활성화 (중복 방지) / 실패 시 에러 메시지 + 재시도
 
 ### 4-4. 운영 품질 정리 🟡
 
 | # | 작업 | 근거 |
 |---|------|------|
-| 24 | UI 영어 문구 한글화 | `AI RACE INTELLIGENCE`, `TODAY RACES`, `PREDICTION SCORE`, `WEEKLY REPORT` 등 |
-| 25 | 날씨 API — FE ML 직접 호출 → Spring Boot 프록시 통일 | `raceApi.ts:26` / 아키텍처 규칙 위반 |
-| 26 | `.gitignore` 로그 파일 추가 | `bulk_stdout.txt`, `bulk_stderr.txt`, `nightly_log.txt` 커밋 위험 |
-| 27 | GitHub Actions 위치 정리 | 루트 `.github/workflows` vs `racepulse/.github/workflows` 중복 |
-| 28 | 대시보드 데모 데이터 `isDemo: true` 플래그 추가 | Top-1/3 100% 오해 방지 |
-| 29 | BE `/horses/{id}` 없는 경우 500 → 404 응답 개선 | 프론트 오류 구분 불가 |
-| 30 | FastAPI charset 명시 (`application/json; charset=utf-8`) | 운영 도구 한글 깨짐 |
-| 31 | 월간 마스터 수집 TODO 구현 | `scheduler.py collect_monthly` 미구현 |
+| 29 | UI 영어 문구 한글화 | `AI RACE INTELLIGENCE`, `TODAY RACES`, `PREDICTION SCORE`, `RACE BOARD` 등 |
+| 30 | 날씨 API FE→FastAPI 직접 호출 → Spring Boot 프록시 통일 | `raceApi.ts:26` 아키텍처 규칙 위반 |
+| 31 | `.gitignore` 로그 파일 추가 | `bulk_stdout/stderr.txt`, `nightly_log.txt` 커밋 위험 |
+| 32 | GitHub Actions 워크플로우 중복 정리 | 루트 vs `racepulse/` 중복 |
+| 33 | 대시보드 `isDemo: true` 플래그 + 안내 문구 | Top-1/3 100% 수치 오해 방지 |
+| 34 | FastAPI `charset=utf-8` 명시 | 운영 도구 한글 깨짐 |
+| 35 | 월간 마스터 수집 `collect_monthly` TODO 구현 | 미구현 함수 |
 
 ---
 
-## 🟢 Phase 5 — 미니게임 (Phase 4 완료 후)
+## 🎨 Phase 5 — UI/UX 전면 개선 (Phase 4 완료 후) — 총 36개
+
+> **목표**: "재미없고 평범하다" → "세상에 없는 경마 플랫폼"
+> 기능이 완성된 상태에서 다듬어야 재작업 없음
+
+### 5-1. 모바일 필수 🔴
+
+| # | 작업 | 상세 |
+|---|------|------|
+| 1 | 하단 네비게이션 바 | `홈/경주/즐겨찾기/검색/마이` — iPhone Safe Area 대응 |
+| 2 | 햄버거 메뉴 드로어 | 왼쪽 슬라이드 패널 — 전체 메뉴 + 로그인 버튼 |
+| 3 | 날짜 picker 커스텀 | 브라우저 기본 input → 골드/네이비 달력 팝업 |
+| 4 | ECharts 차트 모바일 반응형 | 고정 height → `ResponsiveContainer` |
+| 5 | WalletHUD 모바일 배치 개선 | 헤더 → 드로어 내부 이동 |
+
+### 5-2. 경마 시각 언어
+
+| # | 작업 | 상세 |
+|---|------|------|
+| 6 | 게이트 번호 컬러 배지 | 1흰/2검/3빨/4파/5노/6초/7주/8분홍 — 실제 경마 규격 |
+| 7 | 말 폼 도트 | 최근 5경주 ●●○●● — 입상/미입상 시각화 |
+| 8 | 트랙 컨디션 아이콘 | ☀️양호/🌥️보통/🌧️불량 — 날씨 API 연동 |
+| 9 | 경주 거리 시각화 바 | 1000m~2400m 범위 내 현재 거리 위치 |
+| 10 | 경마장 컬러 코딩 | 서울 빨강/부산 파랑/제주 초록 전역 일관 적용 |
+
+### 5-3. 라이브 & 긴장감
+
+| # | 작업 | 상세 |
+|---|------|------|
+| 11 | 라이브 펄스 배지 | `animate-ping` 빨간 점 — 1시간 전부터 표시 |
+| 12 | 카운트다운 색 전환 | D+골드 → 12h주황 → 1h빨강 → 30m빨강+글로우 |
+| 13 | 오늘의 주목 경주 스포트라이트 | 홈 최상단 — AI 신뢰도 최고 경주 풀와이드 |
+| 14 | 실시간 배당 변동 인디케이터 | OddsMovementChart 카드 연결, ▲▼ 컬러 |
+
+### 5-4. 디자인 시스템 개편
+
+| # | 작업 | 상세 |
+|---|------|------|
+| 15 | 배경 서브틀 그리드 | 40×40px 반투명 격자 — Bloomberg Terminal 느낌 |
+| 16 | 골드 그라데이션 테두리 | gradient border-image — 주요 카드 |
+| 17 | 카드 계층 구조 3단계 | Hero(골드글로우)/Primary(현재)/Secondary(bg만) |
+| 18 | 노이즈 텍스처 레이어 | 단색 배경 → 노이즈+그라데이션 오버레이 |
+
+### 5-5. 애니메이션 & 인터랙션
+
+| # | 작업 | 상세 |
+|---|------|------|
+| 19 | 페이지 전환 fade (Framer Motion) | 0.2초 fade + 위에서 살짝 내려오는 슬라이드 |
+| 20 | 숫자 카운트업 애니메이션 | 대시보드 수치 0→실제값 1.2초 카운트업 |
+| 21 | 카드 hover 골드 그림자 | `shadow-gold` + 좌측 골드 강조선 슬라이드인 |
+| 22 | 예측 결과 stagger 등장 | 1위→2위→3위 0.1초 간격 순차 등장 |
+| 23 | 스크롤 프로그레스 바 | 상단 얇은 골드 라인 — 페이지 스크롤 진행도 |
+
+### 5-6. 데이터 밀도 강화
+
+| # | 작업 | 상세 |
+|---|------|------|
+| 24 | 히어로 "지금 이 순간" 개편 | LIVE배지 + 다음 경주 카운트다운 + 예측 진행률 |
+| 25 | 경주마 카드 미니 레이더 차트 | RatingRadarChart 컴포넌트 카드에 연결 |
+| 26 | 주간 성적 히트맵 | 최근 20경주 GitHub 잔디 스타일 |
+| 27 | 경마장 오늘 요약 카드 | 서울/부산/제주 — 경주수/날씨/트랙 나란히 |
+| 28 | 말 비교 기능 | `/horses/compare?ids=1,2,3` 최대 3마리 |
+
+### 5-7. 모바일 심화
+
+| # | 작업 | 상세 |
+|---|------|------|
+| 29 | 무한 스크롤 | 페이지네이션 → `useInfiniteQuery` 전환 |
+| 30 | Pull-to-refresh | 당겨서 새로고침 — 골드 스피너 |
+| 31 | 스와이프 제스처 | 카드 우스와이프→즐겨찾기 / 좌스와이프→예측 |
+
+### 5-8. Premium 디테일
+
+| # | 작업 | 상세 |
+|---|------|------|
+| 32 | 로고 SVG 교체 | `RP` 텍스트 → 경주마 실루엣 + hover 달리기 애니메이션 |
+| 33 | Upset Alert | 하위 배당 말의 통계적 유리함 표시 |
+| 34 | 날씨×경주 상관관계 인사이트 | "비 올 때 이 말 Top-3 +18%" 맥락 |
+| 35 | PWA 설치 유도 배너 | 3회 방문 후 "홈 화면에 추가" |
+| 36 | 사운드 토글 | 경주 시작 알림음 / 예측 결과 팡파레 |
+
+---
+
+## 🎮 Phase 6 — 미니게임 (Phase 5 완료 후)
 
 ### 게임 1: 다마고치 "나의 경주마"
 - 실제 경주마 선택 → 밥주기(건초) / 훈련 / 일일 케어
-- 실제 경주 결과가 말 컨디션에 자동 반영
+- 실제 경주 결과 → 말 컨디션 자동 반영
 - 연속 좋은 성적 → 레벨업 / 카드 등급 상승
-- 출석 + 퀴즈로 편자/건초 획득
+- 출석 체크 + 퀴즈로 편자/건초 획득
 
 ### 게임 2: 경마 마스터 퀴즈
-- 실제 DB 데이터 기반 문제 자동 생성 (5문제 중 3개 / 시간제한 30초)
+- 실제 DB 데이터 기반 문제 자동 생성
+- 5문제 중 3개 / 시간제한 30초
 - 연속 정답 → 분석가 등급 상승
 
-### Phase 5 이후: 토너먼트 + 상점
-- 편자 토너먼트 (1위 150개 / 2위 100개 / 3위 60개)
-- 아이템 상점 (사료/훈련/외형 구입)
+### 게임 3: 편자 토너먼트
+- 1위 150개 / 2위 100개 / 3위 60개
+- 주간 리더보드
+
+### 게임 4: 아이템 상점
+- 사료 / 훈련 / 외형 구입
+- 편자(금/은) + 건초 통화 시스템
 
 ---
 
-## 🔵 Phase 6 — AWS 배포 (Phase 5 완료 후)
+## ☁️ Phase 7 — AWS 배포 + CI/CD + 부하테스트 (Phase 6 완료 후)
 
 - **Terraform 사용** (이미 설치 완료)
-- EC2 3서버 (React Nginx / Spring Boot BE / FastAPI ML) + ALB + CloudFront
-- 배포 일정: 화요일 02:00~06:00 정기 점검일
+- EC2 3대: React Nginx / Spring Boot BE / FastAPI ML
+- ALB + CloudFront CDN / RDS PostgreSQL + ElastiCache Redis
+- GitHub Actions → Docker Build → ECR → EC2 Blue/Green 배포
 - 부하 테스트: 동시 사용자 100명 / p95 500ms 목표
+- 도메인 + HTTPS (ACM) / 마사회 API 상업적 이용 신청 (배포 후)
 
 ---
 
-## 📄 Phase 7 — README + 포트폴리오 문서화 (최종 마무리)
+## 📄 Phase 8 — README + 포트폴리오 문서화 (최종 마무리)
 
 - README.md (기술스택 / 아키텍처 / 실행방법 / 스크린샷 + 실제 URL)
-- 포트폴리오 문서 (기술 선택 이유 / 성과 수치 / 예측 정확도)
-- 마사회 API 상업적 이용 신청 (배포 후 진행)
+- 포트폴리오 문서 (기술 선택 이유 / 성과 수치 / 예측 정확도 99.85%)
+- 기술 블로그 포스팅 (선택)
 
 ---
 
@@ -414,14 +520,24 @@
 
 | Phase | 목표 |
 |-------|------|
-| Phase 4 | Docker 복구 + API 구현 + Placeholder 화면 완성 + 운영 품질 정리 |
-| Phase 5 | 미니게임 (다마고치 + 퀴즈 + 토너먼트 + 상점) |
-| Phase 6 | AWS 배포 + CI/CD + 부하테스트 (Terraform) |
-| Phase 7 | README + 포트폴리오 문서화 (최종 마무리) |
+| Phase 4 | 버그수정 + Docker 복구 + API 완성 + Placeholder 11개 + 수동수집 버튼 + 품질 |
+| Phase 5 | UI/UX 전면 개선 (모바일 + 시각언어 + 애니메이션 + 데이터 밀도 + Premium) |
+| Phase 6 | 미니게임 (다마고치 + 퀴즈 + 토너먼트 + 상점) |
+| Phase 7 | AWS 배포 + CI/CD + 부하테스트 (Terraform) |
+| Phase 8 | README + 포트폴리오 문서화 (절대 마지막) |
 
 #### 원칙 재확인 (창현님 결정)
 - 최종 결정은 항상 창현님이 한다
 - 팀원은 의견·근거·선택지 제시만 — 확정 선언 금지
+- 코드 주석 필수 — 나중에 코드 리뷰할 때 WHY를 알 수 있어야 함
+- Codex에 위임 가능한 작업은 프롬프트로 분리해서 넘기기
+
+#### 추가 발견 버그 (2026-05-27 18차 회의)
+
+| 버그 | 원인 | 수정 방법 | 상태 |
+|------|------|---------|------|
+| 완료 경주가 "데이터 수집 중" 깜빡임 | `DataStatusBadge.COLLECTED` 라벨이 "수집 중"으로 잘못 표기 | 라벨 → "수집 완료", 초록색, 깜빡임 제거 | ✅ `feat/phase4-bugfix` |
+| 몬테카를로 "계산 중..." 영구 표시 | `usePredictionSimulation` isError 미처리 → API 실패 시 무한 로딩 | isLoading/isError 분기 추가, 오류 UI 표시 | ✅ `feat/phase4-bugfix` |
 
 ---
 
@@ -433,38 +549,38 @@
 ### 당장 해야 할 것 (Phase 4 우선순위 순)
 
 ```
-1. 🔴 Docker 복구 3종
-   - ML Dockerfile: python=:3.11-slim → python:3.11-slim
-   - docker-compose.yml ML DB URL: postgresql:// → postgresql+asyncpg://
-   - BE Dockerfile 작성 + Compose 실제 앱 연결
+✅ 완료
+  - DataStatusBadge COLLECTED 라벨 수정 ("수집 완료", 초록, 깜빡임 제거)
+  - 몬테카를로 isLoading/isError 분기 추가
 
-2. 🔴 BE API 구현 8종
-   - /horses/{id} / /jockeys/{id} / /trainers/{id} / /racecourses/{meetCode}
-   - /races/upcoming / /races/results / /dashboard/weekly 500 수정
-   - /home 403 수정 (SecurityConfig 공개 경로 추가)
-   - FastAPI 스케줄러 상태 API 실제 인스턴스 참조
+🔴 다음 (feat/phase4-docker)
+  1. ML Dockerfile: python=:3.11-slim → python:3.11-slim
+  2. docker-compose.yml ML DB URL: postgresql:// → postgresql+asyncpg://
+  3. BE Dockerfile 작성 + Compose 실제 앱 연결
 
-3. 🟡 FE Placeholder 화면 구현 11개
-   - 로그인 / 회원가입 / 카카오 콜백
-   - 경주 결과 / AI 해설
-   - 경주마 목록·상세·이력
-   - 경마장 목록·상세
-   - 관리자 대시보드·수집 현황
+🔴 이후 (feat/phase4-be-api)
+  4. SecurityConfig 공개 경로 추가 (/home, /jockeys/{id}, /trainers/{id})
+  5. /horses/{id} / /jockeys/{id} / /trainers/{id} / /racecourses/{meetCode} 구현
+  6. /races/upcoming / /races/results / /dashboard/weekly 500 수정
+  7. 수동 수집 API 3종 신규 구현
 
-4. 🟡 운영 품질 정리 8종
-   - UI 영어 문구 한글화
-   - 날씨 API Spring Boot 프록시 통일
-   - .gitignore 로그 파일 추가
-   - GitHub Actions 중복 정리
-   - 대시보드 isDemo 플래그
-   - FastAPI charset 명시
-   - 월간 마스터 수집 TODO 구현
+🟡 이후 (feat/phase4-fe-screens)
+  8. 로그인 / 회원가입 / 카카오 콜백
+  9. 경주 결과 / AI 해설
+  10. 경주마 목록·이력 / 경마장 목록·상세
+  11. 관리자 대시보드 + 수집 현황 (수동 수집 버튼 포함)
+
+🟡 이후 (feat/phase4-quality)
+  12. UI 영어 문구 한글화
+  13. 날씨 API Spring Boot 프록시 통일
+  14. .gitignore 로그 파일 추가
+  15. isDemo 플래그 / FastAPI charset / 월간 수집 구현
 ```
 
 ### 현재 브랜치 상태 (2026-05-27 기준)
-- `main` ← v3.0.1 태그 (버그픽스 최종) / v3.0.0 (Phase 3 완료)
+- `main` ← v3.0.1 태그 / `feat/phase4-bugfix` ← 현재 작업 중
 - `develop` ← main과 동기화 완료
-- 다음 브랜치: `feat/phase4-docker` 또는 `feat/phase4-be-api` 로 시작
+- 진행 순서: bugfix → docker → be-api → fe-screens → quality
 
 ### 현재 실행 상태
 - ✅ Docker PostgreSQL (5432) + Redis (6379): healthy
