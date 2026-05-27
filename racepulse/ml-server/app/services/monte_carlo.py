@@ -42,7 +42,10 @@ except ImportError:
     USE_QMC = False
 
 
+# 4차 회의 확정: Adaptive 10k~100k, CI ±0.5% 수렴 시 중단
+# 기본 목표 시뮬레이션: 70,000회 (수렴 시 조기 중단)
 MIN_SIMULATIONS = 10_000
+DEFAULT_SIMULATIONS = 70_000
 MAX_SIMULATIONS = 100_000
 BATCH_SIZE = 1_000
 CI_THRESHOLD = 0.01
@@ -322,7 +325,7 @@ class MonteCarloService:
     async def run_simulation(
         self,
         race_id: int,
-        n_simulations: int = 10_000,
+        n_simulations: int = DEFAULT_SIMULATIONS,  # 기본 70,000회
         use_bayesian: bool = False,
         use_sequential: bool = False,
         use_copula: bool = False,

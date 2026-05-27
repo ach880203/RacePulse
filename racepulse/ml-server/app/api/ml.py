@@ -45,7 +45,7 @@ class MonteCarloSimulationRequest(BaseModel):
     """POST /ml/simulate 요청 본문입니다. Phase 3부터 Bayesian/Sequential/Copula 보정 옵션을 함께 받습니다."""
 
     race_id: int
-    n_simulations: int = 10_000
+    n_simulations: int = 70_000  # 4차 회의 확정: 70,000회 기본
     use_bayesian: bool = True
     use_sequential: bool = True
     use_copula: bool = True
@@ -437,7 +437,7 @@ async def activate_model(
 @router.post("/simulate/{race_id}")
 async def run_monte_carlo_simulation(
     race_id: int,
-    n_simulations: int = 10_000,
+    n_simulations: int = 70_000,  # 4차 회의 확정: 70,000회 기본
     use_bayesian: bool = True,
     use_sequential: bool = True,
     use_copula: bool = True,

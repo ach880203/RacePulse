@@ -26,7 +26,9 @@ from pathlib import Path
 LOG_FILE = Path(__file__).parent / "nightly_log.txt"
 API_BASE = "http://localhost:8000"
 DB_URL   = "postgresql://racepulse:racepulse_dev@localhost:5432/racepulse"
-FRONTEND = Path(__file__).parents[3] / "frontend"
+# parents[2] = racepulse/ 디렉터리, 그 아래 frontend/ 가 실제 경로입니다.
+# (scripts → ml-server → racepulse → frontend)
+FRONTEND = Path(__file__).parents[2] / "frontend"
 
 logging.basicConfig(
     level=logging.INFO,

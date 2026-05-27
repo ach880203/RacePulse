@@ -38,8 +38,12 @@ CALL_DELAY = 1.0
 
 async def get_daily_call_count(client: httpx.AsyncClient) -> int:
     """오늘 이미 사용한 API 호출 수를 조회합니다."""
-    resp = await client.get(f"{API_BASE}/collection/status")
-    return resp.json()["data"]["daily_call_count"]
+    try:
+        resp = await client.get(f"{API_BASE}/collection/status", timeout=10)
+        return resp.json()["data"]["daily_call_count"]
+    except Exception:
+        # 서버 응답이 없으면 0으로 처리하고 계속 진행합니다.
+        return 0
 
 
 def month_range(start: date, end: date):
@@ -62,24 +66,30 @@ async def collect_schedules(client: httpx.AsyncClient):
         rc_month = month.strftime("%Y%m")
         print(f"\n  [{rc_month}] 수집 중...", end=" ")
 
-        resp = await client.post(
-            f"{API_BASE}/collection/test",
-            json={
-                "collection_type": "schedule",
-                "rc_year":  month.year,
-                "rc_month": rc_month,
-            },
-            timeout=120,
-        )
-        data = resp.json()["data"]
-        status = data.get("status", "UNKNOWN")
-        count  = data.get("recordsCollected", 0)
-        calls  = data.get("dailyCallCount", 0)
-        print(f"{status} | {count}건 | 오늘 호출 {calls}회")
+        try:
+            resp = await client.post(
+                f"{API_BASE}/collection/test",
+                json={
+                    "collection_type": "schedule",
+                    "rc_year":  month.year,
+                    "rc_month": rc_month,
+                },
+                timeout=180,  # KRA API가 느릴 수 있어 3분으로 여유있게 설정
+            )
+            data = resp.json()["data"]
+            status = data.get("status", "UNKNOWN")
+            count  = data.get("recordsCollected", 0)
+            calls  = data.get("dailyCallCount", 0)
+            print(f"{status} | {count}건 | 오늘 호출 {calls}회")
 
-        if status == "SKIPPED":
-            print("  ⚠️  일일 한도 도달 — 내일 다시 실행하세요.")
-            return False
+            if status == "SKIPPED":
+                print("  ⚠️  일일 한도 도달 — 내일 다시 실행하세요.")
+                return False
+        except httpx.TimeoutException:
+            # 타임아웃이 발생해도 해당 월만 건너뛰고 계속 진행합니다.
+            print(f"TIMEOUT — 건너뜀 (내일 재시도)")
+        except Exception as e:
+            print(f"ERROR — {e} (건너뜀)")
 
         await asyncio.sleep(CALL_DELAY)
 
@@ -122,26 +132,32 @@ async def collect_results(client: httpx.AsyncClient):
         rc_date   = row["rc_date"].strftime("%Y-%m-%d")
         print(f"\n  [{meet_code} {rc_date}] 결과 수집 중...", end=" ")
 
-        # KRA API 응답이 느린 경우를 대비해 타임아웃을 넉넉히 설정합니다.
-        resp = await client.post(
-            f"{API_BASE}/collection/test",
-            json={
-                "collection_type": "results",
-                "meet_code":   meet_code,
-                "target_date": rc_date,
-            },
-            timeout=120,
-        )
-        data   = resp.json()["data"]
-        status = data.get("status", "UNKNOWN")
-        count  = data.get("recordsCollected", 0)
-        calls  = data.get("dailyCallCount", 0)
-        quality = data.get("qualityStatus", "-")
-        print(f"{status} | {count}건 | 품질 {quality} | 오늘 호출 {calls}회")
+        try:
+            # KRA API 응답이 느린 경우를 대비해 타임아웃을 넉넉히 설정합니다.
+            resp = await client.post(
+                f"{API_BASE}/collection/test",
+                json={
+                    "collection_type": "results",
+                    "meet_code":   meet_code,
+                    "target_date": rc_date,
+                },
+                timeout=180,  # 3분 — KRA API 응답이 느릴 때를 대비
+            )
+            data   = resp.json()["data"]
+            status = data.get("status", "UNKNOWN")
+            count  = data.get("recordsCollected", 0)
+            calls  = data.get("dailyCallCount", 0)
+            quality = data.get("qualityStatus", "-")
+            print(f"{status} | {count}건 | 품질 {quality} | 오늘 호출 {calls}회")
 
-        if status == "SKIPPED":
-            print("  ⚠️  일일 한도 도달 — 내일 다시 실행하세요.")
-            return False
+            if status == "SKIPPED":
+                print("  ⚠️  일일 한도 도달 — 내일 다시 실행하세요.")
+                return False
+        except httpx.TimeoutException:
+            # 타임아웃이 발생해도 해당 날짜만 건너뛰고 계속 진행합니다.
+            print(f"TIMEOUT — 건너뜀 (내일 재시도)")
+        except Exception as e:
+            print(f"ERROR — {e} (건너뜀)")
 
         await asyncio.sleep(CALL_DELAY)
 

@@ -10,6 +10,7 @@
 //   ECharts도 core 방식으로 필요한 차트만 등록해야 Tree Shaking 효과가 커집니다.
 // =============================================================================
 
+import React from 'react' // CJS 인터롭 타입 선언에 React 네임스페이스가 필요합니다.
 import { BarChart, GaugeChart, LineChart, RadarChart } from 'echarts/charts' // 막대/게이지/선/레이더 차트 기능만 가져옵니다.
 import {
   GridComponent,
@@ -23,7 +24,11 @@ import {
 import type { EChartsOption } from 'echarts' // 차트 설정 객체의 TypeScript 타입입니다.
 import * as echarts from 'echarts/core' // ECharts 전체가 아니라 core 등록 시스템만 가져옵니다.
 import { CanvasRenderer } from 'echarts/renderers' // Canvas 렌더러는 SVG보다 많은 데이터에서 안정적인 기본 렌더러입니다.
-import ReactEChartsCore from 'echarts-for-react/lib/core' // React에서 ECharts 인스턴스를 안전하게 붙여 주는 얇은 연결 컴포넌트입니다.
+import _ReactEChartsCore from 'echarts-for-react/lib/core' // React에서 ECharts 인스턴스를 안전하게 붙여 주는 얇은 연결 컴포넌트입니다.
+// CJS/ESM 인터롭: Vite 개발 서버와 프로덕션 빌드에서 CJS 모듈의 default export 처리 방식이 다를 수 있습니다.
+// _ReactEChartsCore가 객체(module namespace)일 경우 .default 를 꺼내 실제 컴포넌트를 가져옵니다.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ReactEChartsCore: React.ComponentType<any> = (_ReactEChartsCore as any).default ?? _ReactEChartsCore
 
 // echarts.use(...)는 "이 프로젝트에서 사용할 차트 부품 목록"을 등록하는 단계입니다.
 // 전체 ECharts를 import하지 않아도 되므로 대시보드/동적 컴포넌트 청크가 작아집니다.
