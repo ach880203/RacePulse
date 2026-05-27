@@ -28,7 +28,8 @@ public enum ErrorCode {
 
         // 경주
         RACE_NOT_FOUND(404, "경주를 찾을 수 없습니다."),
-        HORSE_NOT_FOUND(404, "말을 찾을 수 없습니다.");
+        HORSE_NOT_FOUND(404, "말을 찾을 수 없습니다."),
+        JOCKEY_NOT_FOUND(404, "기수를 찾을 수 없습니다.");
 
         private final int status;   // HTTP 상태코드
         private final String message; // 클라이언트에 전달할 메시지

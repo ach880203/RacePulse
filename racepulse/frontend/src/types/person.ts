@@ -7,12 +7,26 @@ import type { MeetCode } from './race'
 /** 기수 1건 */
 export interface Jockey {
   id: number
+  licenseNo: string | null
   name: string
-  meetCode: MeetCode
-  winRate: number | null    // 승률 (0~1)
-  placeRate: number | null  // 연대율 (0~1)
-  totalRaces: number | null
-  totalWins: number | null
+  engName: string | null
+  birthYear: number | null
+  debutYear: number | null
+  meetCode: string
+  affiliation: string | null
+  photoUrl: string | null
+  isActive: boolean
+  winRateTotal: number | null    // 통산 승률 (0~1)
+  winRateRecent: number | null   // 최근 승률 (0~1)
+  placeRateTotal: number | null  // 통산 연대율 (0~1)
+}
+
+/** 기수 목록 조회 파라미터 */
+export interface JockeyListParams {
+  meetCode?: string
+  name?: string
+  page?: number
+  size?: number
 }
 
 /** 조교사 1건 */

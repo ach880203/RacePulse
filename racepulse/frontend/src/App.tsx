@@ -30,7 +30,9 @@ const RaceListPage = lazy(() => import('./pages/RaceListPage'))
 const RaceDetailPage = lazy(() => import('./pages/race/RaceDetailPage'))
 const RaceEntriesPage = lazy(() => import('./pages/race/RaceEntriesPage'))
 const RacePredictionPage = lazy(() => import('./pages/race/RacePredictionPage'))
+const HorseListPage = lazy(() => import('./pages/horse/HorseListPage'))
 const HorseDetailPage = lazy(() => import('./pages/horse/HorseDetailPage'))
+const JockeyListPage = lazy(() => import('./pages/jockey/JockeyListPage'))
 const JockeyDetailPage = lazy(() => import('./pages/jockey/JockeyDetailPage'))
 const TrainerDetailPage = lazy(() => import('./pages/trainer/TrainerDetailPage'))
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
@@ -100,12 +102,13 @@ function App() {
           <Route path="/races/:raceId/prediction"       element={<RacePredictionPage />} />
           <Route path="/races/:raceId/commentary"       element={<Placeholder name="AI 해설" />} />
 
-          {/* 경주마 관련 — 11번에서 실제 페이지로 교체 */}
-          <Route path="/horses"                         element={<Placeholder name="경주마 목록" />} />
+          {/* 경주마 관련 */}
+          <Route path="/horses"                         element={<HorseListPage />} />
           <Route path="/horses/:horseId"                element={<HorseDetailPage />} />
           <Route path="/horses/:horseId/history"        element={<Placeholder name="경주마 성적 이력" />} />
 
-          {/* 기수 / 조교사 — 11번에서 실제 페이지로 교체 */}
+          {/* 기수 / 조교사 */}
+          <Route path="/jockeys"                        element={<JockeyListPage />} />
           <Route path="/jockeys/:jockeyId"              element={<JockeyDetailPage />} />
           <Route path="/trainers/:trainerId"            element={<TrainerDetailPage />} />
 

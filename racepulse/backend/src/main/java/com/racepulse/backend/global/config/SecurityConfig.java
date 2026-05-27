@@ -80,6 +80,8 @@ public class SecurityConfig {
                                 "/api/v1/predictions/**",
                                 "/api/v1/horses",
                                 "/api/v1/horses/**",
+                                "/api/v1/jockeys",
+                                "/api/v1/jockeys/**",
                                 "/api/v1/search",
                                 "/api/v1/search/**",
                                 "/api/v1/privacy",
