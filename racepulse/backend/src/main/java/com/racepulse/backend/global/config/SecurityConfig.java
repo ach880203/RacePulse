@@ -86,7 +86,9 @@ public class SecurityConfig {
                                 "/api/v1/terms",
                                 // 대시보드 통계와 해설은 로그인 없이 공개 조회 가능
                                 "/api/v1/dashboard/**",
-                                "/api/v1/commentary/**"
+                                "/api/v1/commentary/**",
+                                // 날씨 예보도 공개 조회 가능 (인증 없이 경주 상세에서 표시)
+                                "/api/v1/weather/**"
                         ).permitAll()
 
                         // 나머지 모든 요청은 JWT 인증 필요

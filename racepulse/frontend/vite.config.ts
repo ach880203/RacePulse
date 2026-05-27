@@ -206,6 +206,11 @@ export default defineConfig({
   server: {
     port: 3000,
   },
+  optimizeDeps: {
+    // 개발 서버에서 대시보드에 처음 진입할 때 ECharts 래퍼를 즉시 변환하면
+    // Vite 의존성 캐시 상태에 따라 동적 import가 500으로 실패할 수 있어 미리 최적화합니다.
+    include: ['echarts', 'echarts/core', 'echarts-for-react/lib/core'],
+  },
   build: {
     // chunkSizeWarningLimit은 경고 기준을 낮추거나 숨기는 용도가 아닙니다.
     // 목표가 500KB 미만이므로 기본 기준을 그대로 명시해 CI에서 초과를 빠르게 알아차립니다.
