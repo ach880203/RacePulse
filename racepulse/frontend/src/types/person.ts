@@ -12,7 +12,7 @@ export interface Jockey {
   engName: string | null
   birthYear: number | null
   debutYear: number | null
-  meetCode: string
+  meetCode: MeetCode
   affiliation: string | null
   photoUrl: string | null
   isActive: boolean
@@ -37,7 +37,7 @@ export interface Trainer {
   engName: string | null
   birthYear: number | null
   debutYear: number | null
-  meetCode: string
+  meetCode: MeetCode
   affiliation: string | null
   photoUrl: string | null
   isActive: boolean
