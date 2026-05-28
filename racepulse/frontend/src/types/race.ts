@@ -25,7 +25,7 @@ export interface Race {
   raceName: string
   distance: number        // 단위: 미터
   trackType: string | null
-  prize: number | null    // 단위: 원
+  prizeMoney: number | null // 단위: 원
   weather: string | null
   startTime: string | null // "11:00" 형식
   status: RaceStatus

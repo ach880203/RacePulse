@@ -117,7 +117,7 @@
 
 ---
 
-## 🗄️ DB 현황 (Flyway V1~V13 / 총 43개 테이블)
+## 🗄️ DB 현황 (Flyway V1~V14 / 총 43개 테이블)
 
 | Flyway | 내용 |
 |--------|------|
@@ -126,6 +126,7 @@
 | V3~V5 | Phase 1 — push_subscriptions / user_profile / Phase 3 테이블 |
 | V6~V12 | Phase 2 — ML 피처스토어 / 경주출전 / 스키마 정렬 / rival+style |
 | V13 | Phase 3 — trainer_changes / equipment_changes / user_wallets / AI 품질 컬럼 |
+| V14 | Phase 4 — horses 승률 컬럼 4개 (win_rate_total/recent, place_rate_total, debut_year) + races.moisture_level |
 
 ### 현재 DB 데이터 현황 (2026-05-27 기준)
 
@@ -314,10 +315,10 @@
 
 | # | 작업 | 현재 상태 |
 |---|------|---------|
-| 6 | SecurityConfig 공개 경로 추가 (`/home` `/jockeys/{id}` `/trainers/{id}`) | 403 |
-| 7 | `GET /horses/{id}` 구현 + 없을 때 404 반환 | 500 |
-| 8 | `GET /jockeys/{id}` 컨트롤러 구현 | 403 |
-| 9 | `GET /trainers/{id}` 컨트롤러 구현 | 403 |
+| 6 | SecurityConfig 공개 경로 추가 (`/home` `/jockeys/{id}` `/trainers/{id}`) | ✅ 완료 |
+| 7 | `GET /horses/{id}` 구현 + 없을 때 404 반환 | ✅ 완료 |
+| 8 | `GET /jockeys/{id}` 컨트롤러 구현 | ✅ 완료 |
+| 9 | `GET /trainers/{id}` 컨트롤러 구현 | ✅ 완료 |
 | 10 | `GET /racecourses/{meetCode}` 컨트롤러 구현 | 500 |
 | 11 | `/races/upcoming` 쿼리 오류 수정 | 500 |
 | 12 | `/races/results` 쿼리 오류 수정 | 500 |
@@ -359,7 +360,7 @@
 | 32 | GitHub Actions 워크플로우 중복 정리 | 루트 vs `racepulse/` 중복 |
 | 33 | 대시보드 `isDemo: true` 플래그 + 안내 문구 | Top-1/3 100% 수치 오해 방지 |
 | 34 | FastAPI `charset=utf-8` 명시 | 운영 도구 한글 깨짐 |
-| 35 | 월간 마스터 수집 `collect_monthly` TODO 구현 | 미구현 함수 |
+| 35 | 월간 마스터 수집 `collect_monthly` TODO 구현 | ✅ 완료 (19차 세션) |
 
 ---
 
@@ -541,6 +542,80 @@
 
 ---
 
+### [날짜: 2026-05-28] 19차 세션 — BE API 완성 + KRA API 전면 확장
+
+- **참석**: ML, BE, ARCH, 창현님
+
+#### 작업 1: BE API 403/500 수정 (Phase 4-2)
+
+| 작업 | 결과 |
+|------|------|
+| SecurityConfig 공개 경로 추가 (`/home`, `/jockeys/{id}`, `/trainers/{id}`) | ✅ |
+| `GET /horses/{id}` — 없을 때 404 / HorseService + HorseController 구현 | ✅ |
+| `GET /jockeys/{id}` — JockeyController + JockeyService + JockeyResponse 신규 구현 | ✅ |
+| `GET /trainers/{id}` — TrainerController + TrainerService + TrainerResponse 신규 구현 | ✅ |
+| FE HorseDetailPage / TrainerDetailPage / RaceDetailPage 타입 정합성 수정 | ✅ |
+
+#### 작업 2: KRA API 전면 확장 (ml-server)
+
+**배경**: `마사회 API 정보.md` 전수 확인 → 구독 완료된 API 15종 중 실제 호출 중인 건 3종뿐. 나머지 12종 URL 오류 + 미구현 상태.
+
+**수정된 URL (오류 → 정상)**
+
+| API | 잘못된 URL | 올바른 URL |
+|-----|-----------|-----------|
+| jockeyInfo_1 | `currentjockeyInfo/getcurrentjockeyinfo` | `API12_1/jockeyInfo_1` |
+| trainerInfo_1 | `API308/trainerInfo` | `API19_1/trainerInfo_1` |
+
+**신규 추가된 fetch 메서드 (kra_api.py)**
+
+| 메서드 | API | 용도 |
+|--------|-----|------|
+| `fetch_jockey_result_list` | jockeyResult_1 | 기수 통산/최근1년 승률 직접 제공 |
+| `fetch_jockey_change_list` | jockeyChangeInfo_1 | 경주 당일 기수 변경 감지 |
+| `fetch_horse_result_list` | raceHorseResult_2 | 경주마 통산/최근1년 승률·복승률 |
+| `fetch_horse_detail_list` | raceHorseInfo_2 | 경주마 성별·혈통·생년월일 상세 |
+| `fetch_total_horse_info` | totalHorseInfo_1 | 말 번호로 단건 상세 조회 |
+| `fetch_track_conditions` | Track_1 | 경주로 함수율·날씨·상태 |
+| `fetch_integrated_odds` | integratedInfo_1 | 통합 배당 정보 |
+| `fetch_race_results_v3` | raceResult_3 | 경주 결과 v3 |
+
+**신규 collect/save 메서드 (data_service.py)**
+
+| 메서드 | 저장 내용 |
+|--------|---------|
+| `collect_horse_results` + `_save_horse_result_items` | win_rate_total/recent/place_rate_total (% → Decimal) + debut_year |
+| `collect_horse_details` + `_save_horse_detail_items` | sex / origin / birth_year / mother_name |
+| `collect_jockey_results` + `_save_jockey_result_items` | win_rate_total/recent/place_rate_total (% → Decimal) |
+| `collect_track_conditions` + `_save_track_condition_items` | moisture_level / weather / track_condition |
+
+**버그 수정 (trainerInfo_1)**
+- `birth_year` 하드코딩 `None` → `_parse_year_from_date8(item.get("birthday"))` 으로 수정
+
+#### 작업 3: Flyway V14 마이그레이션 신규 추가
+
+```sql
+-- horses 테이블
+ADD COLUMN win_rate_total   NUMERIC(5, 4)
+ADD COLUMN win_rate_recent  NUMERIC(5, 4)
+ADD COLUMN place_rate_total NUMERIC(5, 4)
+ADD COLUMN debut_year       INTEGER
+
+-- races 테이블
+ADD COLUMN moisture_level NUMERIC(4, 1)
+```
+
+#### 작업 4: 스케줄러 + 어드민 API 연동
+
+| 위치 | 변경 내용 |
+|------|---------|
+| `scheduler._collect_monthly_master` | 기수 성적 + 마필 성적 + 마필 상세 3종 추가 (jockeyResult_1, raceHorseResult_2, raceHorseInfo_2) |
+| `scheduler.collect_daily_info` | `_collect_daily_info_impl`로 분리 — 출전 정보 + **트랙 상태 동시 수집** |
+| `admin.RUNNABLE_JOBS` | collect_jockey_results / collect_horse_results / collect_horse_details / collect_track_conditions 4종 추가 |
+| `admin._dispatch_job` | 위 4종 수동 실행 분기 추가 |
+
+---
+
 ## 📌 새 세션 인수인계 체크리스트
 
 새 채팅을 열 때 반드시 이 파일(`horse_racing_team_v4.md`)을 읽고 시작할 것.
@@ -552,35 +627,45 @@
 ✅ 완료
   - DataStatusBadge COLLECTED 라벨 수정 ("수집 완료", 초록, 깜빡임 제거)
   - 몬테카를로 isLoading/isError 분기 추가
+  - SecurityConfig 공개 경로 추가 (/home, /jockeys/{id}, /trainers/{id})
+  - /horses/{id} 구현 (404 처리 포함)
+  - /jockeys/{id} 신규 구현 (JockeyController + Service + DTO)
+  - /trainers/{id} 신규 구현 (TrainerController + Service + DTO)
+  - KRA API URL 오류 수정 (jockeyInfo_1, trainerInfo_1)
+  - KRA API 신규 fetch 8종 추가 (jockeyResult, horseResult, horseDetail, trackCondition 등)
+  - data_service.py 신규 collect/save 4종 (기수성적, 마필성적, 마필상세, 트랙상태)
+  - Flyway V14 마이그레이션 추가 (horses 4컬럼 + races 1컬럼)
+  - 월간 수집 스케줄러 완성 (_collect_monthly_master)
+  - 당일 수집 트랙 상태 포함 (_collect_daily_info_impl)
+  - admin.py RUNNABLE_JOBS 4종 + dispatch 분기 추가
 
 🔴 다음 (feat/phase4-docker)
   1. ML Dockerfile: python=:3.11-slim → python:3.11-slim
   2. docker-compose.yml ML DB URL: postgresql:// → postgresql+asyncpg://
   3. BE Dockerfile 작성 + Compose 실제 앱 연결
 
-🔴 이후 (feat/phase4-be-api)
-  4. SecurityConfig 공개 경로 추가 (/home, /jockeys/{id}, /trainers/{id})
-  5. /horses/{id} / /jockeys/{id} / /trainers/{id} / /racecourses/{meetCode} 구현
-  6. /races/upcoming / /races/results / /dashboard/weekly 500 수정
-  7. 수동 수집 API 3종 신규 구현
+🔴 이후 (feat/phase4-be-api 잔여)
+  4. /racecourses/{meetCode} 컨트롤러 구현
+  5. /races/upcoming / /races/results / /dashboard/weekly 500 수정
+  6. 수동 수집 API 3종 신규 구현
 
 🟡 이후 (feat/phase4-fe-screens)
-  8. 로그인 / 회원가입 / 카카오 콜백
-  9. 경주 결과 / AI 해설
-  10. 경주마 목록·이력 / 경마장 목록·상세
-  11. 관리자 대시보드 + 수집 현황 (수동 수집 버튼 포함)
+  7. 로그인 / 회원가입 / 카카오 콜백
+  8. 경주 결과 / AI 해설
+  9. 경주마 목록·이력 / 경마장 목록·상세
+  10. 관리자 대시보드 + 수집 현황 (수동 수집 버튼 포함)
 
 🟡 이후 (feat/phase4-quality)
-  12. UI 영어 문구 한글화
-  13. 날씨 API Spring Boot 프록시 통일
-  14. .gitignore 로그 파일 추가
-  15. isDemo 플래그 / FastAPI charset / 월간 수집 구현
+  11. UI 영어 문구 한글화
+  12. 날씨 API Spring Boot 프록시 통일
+  13. .gitignore 로그 파일 추가
+  14. isDemo 플래그 / FastAPI charset
 ```
 
-### 현재 브랜치 상태 (2026-05-27 기준)
+### 현재 브랜치 상태 (2026-05-28 기준)
 - `main` ← v3.0.1 태그 / `feat/phase4-bugfix` ← 현재 작업 중
 - `develop` ← main과 동기화 완료
-- 진행 순서: bugfix → docker → be-api → fe-screens → quality
+- 진행 순서: bugfix(현재) → docker → be-api 잔여 → fe-screens → quality
 
 ### 현재 실행 상태
 - ✅ Docker PostgreSQL (5432) + Redis (6379): healthy

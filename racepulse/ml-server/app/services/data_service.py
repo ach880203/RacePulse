@@ -66,6 +66,350 @@ class DataService:
         self.db = db
         self.kra_api_service = kra_api_service
 
+    async def collect_master_jockeys(
+        self,
+        meet_codes: list[str],
+    ) -> CollectionSummary:
+        """기수 기본정보 전체를 KRA API에서 수집해 DB에 upsert합니다."""
+        all_items: list[dict[str, Any]] = []
+
+        try:
+            for meet_code in meet_codes:
+                all_items.extend(
+                    await self.kra_api_service.fetch_jockey_list(
+                        meet=self._meet_code_to_api_value(meet_code),
+                    )
+                )
+
+            records_collected, null_count, anomaly_count = await self._save_master_jockey_items(all_items)
+            await self.db.commit()
+
+            summary = await self._build_summary(
+                api_name="master_jockeys",
+                status=CollectStatusEnum.SUCCESS if records_collected > 0 else CollectStatusEnum.PARTIAL,
+                records_collected=records_collected,
+                null_count=null_count,
+                anomaly_count=anomaly_count,
+                message=None if records_collected > 0 else "수집된 기수 데이터가 없습니다.",
+            )
+        except KRARateLimitExceededError as error:
+            await self.db.rollback()
+            summary = await self._build_summary(
+                api_name="master_jockeys",
+                status=CollectStatusEnum.SKIPPED,
+                records_collected=0,
+                null_count=0,
+                anomaly_count=0,
+                message=str(error),
+            )
+        except Exception as error:
+            await self.db.rollback()
+            summary = await self._build_summary(
+                api_name="master_jockeys",
+                status=CollectStatusEnum.FAILED,
+                records_collected=0,
+                null_count=0,
+                anomaly_count=0,
+                message=str(error),
+            )
+
+        await self._insert_collection_log(summary)
+        await self.db.commit()
+        return summary
+
+    async def collect_master_trainers(
+        self,
+        meet_codes: list[str],
+    ) -> CollectionSummary:
+        """조교사 기본정보 전체를 KRA API에서 수집해 DB에 upsert합니다."""
+        all_items: list[dict[str, Any]] = []
+
+        try:
+            for meet_code in meet_codes:
+                all_items.extend(
+                    await self.kra_api_service.fetch_trainer_list(
+                        meet=self._meet_code_to_api_value(meet_code),
+                    )
+                )
+
+            records_collected, null_count, anomaly_count = await self._save_master_trainer_items(all_items)
+            await self.db.commit()
+
+            summary = await self._build_summary(
+                api_name="master_trainers",
+                status=CollectStatusEnum.SUCCESS if records_collected > 0 else CollectStatusEnum.PARTIAL,
+                records_collected=records_collected,
+                null_count=null_count,
+                anomaly_count=anomaly_count,
+                message=None if records_collected > 0 else "수집된 조교사 데이터가 없습니다.",
+            )
+        except KRARateLimitExceededError as error:
+            await self.db.rollback()
+            summary = await self._build_summary(
+                api_name="master_trainers",
+                status=CollectStatusEnum.SKIPPED,
+                records_collected=0,
+                null_count=0,
+                anomaly_count=0,
+                message=str(error),
+            )
+        except Exception as error:
+            await self.db.rollback()
+            summary = await self._build_summary(
+                api_name="master_trainers",
+                status=CollectStatusEnum.FAILED,
+                records_collected=0,
+                null_count=0,
+                anomaly_count=0,
+                message=str(error),
+            )
+
+        await self._insert_collection_log(summary)
+        await self.db.commit()
+        return summary
+
+    async def collect_master_horses(
+        self,
+        meet_codes: list[str],
+    ) -> CollectionSummary:
+        """마필 기본정보 전체를 KRA API에서 수집해 DB에 upsert합니다."""
+        all_items: list[dict[str, Any]] = []
+
+        try:
+            for meet_code in meet_codes:
+                items = await self.kra_api_service.fetch_horse_list(
+                    meet=self._meet_code_to_api_value(meet_code),
+                )
+                # 경마장 코드를 각 아이템에 주입합니다 (API 응답에 meet_code가 없는 경우 대비).
+                for item in items:
+                    item["_meet_code"] = meet_code
+                all_items.extend(items)
+
+            records_collected, null_count, anomaly_count = await self._save_master_horse_items(all_items)
+            await self.db.commit()
+
+            summary = await self._build_summary(
+                api_name="master_horses",
+                status=CollectStatusEnum.SUCCESS if records_collected > 0 else CollectStatusEnum.PARTIAL,
+                records_collected=records_collected,
+                null_count=null_count,
+                anomaly_count=anomaly_count,
+                message=None if records_collected > 0 else "수집된 마필 데이터가 없습니다.",
+            )
+        except KRARateLimitExceededError as error:
+            await self.db.rollback()
+            summary = await self._build_summary(
+                api_name="master_horses",
+                status=CollectStatusEnum.SKIPPED,
+                records_collected=0,
+                null_count=0,
+                anomaly_count=0,
+                message=str(error),
+            )
+        except Exception as error:
+            await self.db.rollback()
+            summary = await self._build_summary(
+                api_name="master_horses",
+                status=CollectStatusEnum.FAILED,
+                records_collected=0,
+                null_count=0,
+                anomaly_count=0,
+                message=str(error),
+            )
+
+        await self._insert_collection_log(summary)
+        await self.db.commit()
+        return summary
+
+    async def collect_horse_results(
+        self,
+        meet_codes: list[str],
+    ) -> CollectionSummary:
+        """경주마 통산/최근1년 승률·복승률을 KRA API(raceHorseResult_2)에서 수집해 DB에 업데이트합니다."""
+        all_items: list[dict[str, Any]] = []
+
+        try:
+            for meet_code in meet_codes:
+                items = await self.kra_api_service.fetch_horse_result_list(
+                    meet=self._meet_code_to_api_value(meet_code),
+                )
+                for item in items:
+                    item["_meet_code"] = meet_code
+                all_items.extend(items)
+
+            records_collected, null_count, anomaly_count = await self._save_horse_result_items(all_items)
+            await self.db.commit()
+
+            summary = await self._build_summary(
+                api_name="horse_results",
+                status=CollectStatusEnum.SUCCESS if records_collected > 0 else CollectStatusEnum.PARTIAL,
+                records_collected=records_collected,
+                null_count=null_count,
+                anomaly_count=anomaly_count,
+                message=None if records_collected > 0 else "수집된 경주마 성적 데이터가 없습니다.",
+            )
+        except KRARateLimitExceededError as error:
+            await self.db.rollback()
+            summary = await self._build_summary(
+                api_name="horse_results",
+                status=CollectStatusEnum.SKIPPED,
+                records_collected=0, null_count=0, anomaly_count=0,
+                message=str(error),
+            )
+        except Exception as error:
+            await self.db.rollback()
+            summary = await self._build_summary(
+                api_name="horse_results",
+                status=CollectStatusEnum.FAILED,
+                records_collected=0, null_count=0, anomaly_count=0,
+                message=str(error),
+            )
+
+        await self._insert_collection_log(summary)
+        await self.db.commit()
+        return summary
+
+    async def collect_horse_details(
+        self,
+        meet_codes: list[str],
+    ) -> CollectionSummary:
+        """경주마 상세정보(모마명·생년월일 등)를 KRA API(raceHorseInfo_2)에서 수집해 DB에 업데이트합니다."""
+        all_items: list[dict[str, Any]] = []
+
+        try:
+            for meet_code in meet_codes:
+                items = await self.kra_api_service.fetch_horse_detail_list(
+                    meet=self._meet_code_to_api_value(meet_code),
+                )
+                for item in items:
+                    item["_meet_code"] = meet_code
+                all_items.extend(items)
+
+            records_collected, null_count, anomaly_count = await self._save_horse_detail_items(all_items)
+            await self.db.commit()
+
+            summary = await self._build_summary(
+                api_name="horse_details",
+                status=CollectStatusEnum.SUCCESS if records_collected > 0 else CollectStatusEnum.PARTIAL,
+                records_collected=records_collected,
+                null_count=null_count,
+                anomaly_count=anomaly_count,
+            )
+        except KRARateLimitExceededError as error:
+            await self.db.rollback()
+            summary = await self._build_summary(
+                api_name="horse_details",
+                status=CollectStatusEnum.SKIPPED,
+                records_collected=0, null_count=0, anomaly_count=0,
+                message=str(error),
+            )
+        except Exception as error:
+            await self.db.rollback()
+            summary = await self._build_summary(
+                api_name="horse_details",
+                status=CollectStatusEnum.FAILED,
+                records_collected=0, null_count=0, anomaly_count=0,
+                message=str(error),
+            )
+
+        await self._insert_collection_log(summary)
+        await self.db.commit()
+        return summary
+
+    async def collect_jockey_results(
+        self,
+        meet_codes: list[str],
+    ) -> CollectionSummary:
+        """기수 성적 정보(승률 직접 제공)를 KRA API(jockeyResult_1)에서 수집해 DB에 업데이트합니다."""
+        all_items: list[dict[str, Any]] = []
+
+        try:
+            for meet_code in meet_codes:
+                all_items.extend(
+                    await self.kra_api_service.fetch_jockey_result_list(
+                        meet=self._meet_code_to_api_value(meet_code),
+                    )
+                )
+
+            records_collected, null_count, anomaly_count = await self._save_jockey_result_items(all_items)
+            await self.db.commit()
+
+            summary = await self._build_summary(
+                api_name="jockey_results",
+                status=CollectStatusEnum.SUCCESS if records_collected > 0 else CollectStatusEnum.PARTIAL,
+                records_collected=records_collected,
+                null_count=null_count,
+                anomaly_count=anomaly_count,
+            )
+        except KRARateLimitExceededError as error:
+            await self.db.rollback()
+            summary = await self._build_summary(
+                api_name="jockey_results",
+                status=CollectStatusEnum.SKIPPED,
+                records_collected=0, null_count=0, anomaly_count=0,
+                message=str(error),
+            )
+        except Exception as error:
+            await self.db.rollback()
+            summary = await self._build_summary(
+                api_name="jockey_results",
+                status=CollectStatusEnum.FAILED,
+                records_collected=0, null_count=0, anomaly_count=0,
+                message=str(error),
+            )
+
+        await self._insert_collection_log(summary)
+        await self.db.commit()
+        return summary
+
+    async def collect_track_conditions(
+        self,
+        meet_code: str,
+        rc_date: date,
+    ) -> CollectionSummary:
+        """경주로 상태(함수율·날씨·주로상태)를 KRA API(Track_1)에서 수집해 경주 레코드를 업데이트합니다."""
+        try:
+            items = await self.kra_api_service.fetch_track_conditions(
+                meet=self._meet_code_to_api_value(meet_code),
+                rc_date=rc_date.strftime("%Y%m%d"),
+            )
+            for item in items:
+                item["_meet_code"] = meet_code
+                item["_rc_date"] = rc_date
+
+            records_collected, null_count, anomaly_count = await self._save_track_condition_items(items)
+            await self.db.commit()
+
+            summary = await self._build_summary(
+                api_name="track_conditions",
+                status=CollectStatusEnum.SUCCESS if records_collected > 0 else CollectStatusEnum.PARTIAL,
+                records_collected=records_collected,
+                null_count=null_count,
+                anomaly_count=anomaly_count,
+                meet_code=meet_code,
+                rc_date=rc_date,
+            )
+        except KRARateLimitExceededError as error:
+            await self.db.rollback()
+            summary = await self._build_summary(
+                api_name="track_conditions",
+                status=CollectStatusEnum.SKIPPED,
+                records_collected=0, null_count=0, anomaly_count=0,
+                message=str(error),
+            )
+        except Exception as error:
+            await self.db.rollback()
+            summary = await self._build_summary(
+                api_name="track_conditions",
+                status=CollectStatusEnum.FAILED,
+                records_collected=0, null_count=0, anomaly_count=0,
+                message=str(error),
+            )
+
+        await self._insert_collection_log(summary)
+        await self.db.commit()
+        return summary
+
     async def collect_race_schedule(
         self,
         meet_codes: list[str],
@@ -274,6 +618,345 @@ class DataService:
                 for log in logs[:20]
             ],
         }
+
+    async def _save_master_jockey_items(self, items: list[dict[str, Any]]) -> tuple[int, int, int]:
+        # API: currentjockeyInfo/getcurrentjockeyinfo (data.go.kr 15086329)
+        records_collected = 0
+        null_count = 0
+        anomaly_count = 0
+
+        for item in items:
+            license_no = self._safe_text(item.get("jkNo"))
+            name = self._safe_text(item.get("jkName"))
+            meet_code = self._normalize_meet_code(item.get("meet"))
+
+            if not name or not license_no or not meet_code:
+                anomaly_count += 1
+                continue
+
+            # 승률: ord1CntT/rcCntT (API 직접 제공값 없음, 횟수에서 계산)
+            win_rate_total = self._calc_rate(item.get("ord1CntT"), item.get("rcCntT"))
+            win_rate_recent = self._calc_rate(item.get("ord1CntY"), item.get("rcCntY"))
+            # 연대율 = (1착+2착+3착) / 총출주 (직접 계산)
+            place_rate_total = self._calc_place_rate(
+                item.get("ord1CntT"), item.get("ord2CntT"), item.get("ord3CntT"), item.get("rcCntT")
+            )
+
+            # birthday, debut 모두 YYYYMMDD 형식 (앞 4자리가 연도)
+            birth_year = self._parse_year_from_date8(item.get("birthday"))
+            debut_year = self._parse_year_from_date8(item.get("debut"))
+
+            payload = {
+                "name": name,
+                "eng_name": None,  # 현직기수정보 API에는 영문명 필드 없음
+                "meet_code": meet_code,
+                "license_no": license_no,
+                "birth_year": birth_year,
+                "debut_year": debut_year,
+                "affiliation": self._safe_text(item.get("part")),
+                "photo_url": None,
+                "win_rate_total": self._safe_decimal(win_rate_total),
+                "win_rate_recent": self._safe_decimal(win_rate_recent),
+                "place_rate_total": self._safe_decimal(place_rate_total),
+                "is_active": True,
+                "updated_at": datetime.now(),
+            }
+
+            null_count += self._count_null_values(
+                payload, ignore_keys={"updated_at", "is_active", "eng_name", "photo_url"}
+            )
+
+            await self.db.execute(
+                insert(Jockey)
+                .values(name=name, created_at=datetime.now(), **payload)
+                .on_conflict_do_update(
+                    index_elements=["license_no", "meet_code"],
+                    set_={k: v for k, v in payload.items() if k not in ("name", "meet_code", "license_no")},
+                )
+            )
+            records_collected += 1
+
+        return records_collected, null_count, anomaly_count
+
+    async def _save_master_trainer_items(self, items: list[dict[str, Any]]) -> tuple[int, int, int]:
+        # API: API308/trainerInfo (data.go.kr 15130588 — 조교사정보_영문추가)
+        records_collected = 0
+        null_count = 0
+        anomaly_count = 0
+
+        for item in items:
+            license_no = self._safe_text(item.get("trNo"))
+            name = self._safe_text(item.get("trName"))
+            meet_code = self._normalize_meet_code(item.get("meet"))
+
+            if not name or not license_no or not meet_code:
+                anomaly_count += 1
+                continue
+
+            # winRateT/winRateY 는 % 단위로 제공됩니다 (예: 15.30 = 15.30%)
+            # DB는 0~1 소수 형식이므로 100으로 나눕니다.
+            win_rate_total = self._pct_to_decimal(item.get("winRateT"))
+            win_rate_recent = self._pct_to_decimal(item.get("winRateY"))
+
+            # stDate: 데뷔일자 (YYYYMMDD 또는 YYYY 형식 모두 처리)
+            debut_year = self._parse_year_from_date8(item.get("stDate"))
+            # birthday: 생년월일 (trainerInfo_1 에서 제공, YYYYMMDD)
+            birth_year = self._parse_year_from_date8(item.get("birthday"))
+
+            payload = {
+                "name": name,
+                "eng_name": self._safe_text(item.get("trNameEn")),
+                "meet_code": meet_code,
+                "license_no": license_no,
+                "birth_year": birth_year,
+                "debut_year": debut_year,
+                "affiliation": self._safe_text(item.get("part")),
+                "photo_url": None,
+                "win_rate_total": win_rate_total,
+                "win_rate_recent": win_rate_recent,
+                "is_active": True,
+                "updated_at": datetime.now(),
+            }
+
+            null_count += self._count_null_values(
+                payload, ignore_keys={"updated_at", "is_active", "photo_url"}
+            )
+
+            await self.db.execute(
+                insert(Trainer)
+                .values(name=name, created_at=datetime.now(), **payload)
+                .on_conflict_do_update(
+                    index_elements=["license_no", "meet_code"],
+                    set_={k: v for k, v in payload.items() if k not in ("name", "meet_code", "license_no")},
+                )
+            )
+            records_collected += 1
+
+        return records_collected, null_count, anomaly_count
+
+    async def _save_master_horse_items(self, items: list[dict[str, Any]]) -> tuple[int, int, int]:
+        # API: racehorselist/getracehorselist (data.go.kr 15089503 — 경주마명단)
+        # 주의: 부마명/모마명은 이 API에서 제공되지 않습니다.
+        # 주의: nameSp = 소속조(예: "40조"), 영문마명이 아닙니다.
+        records_collected = 0
+        null_count = 0
+        anomaly_count = 0
+
+        for item in items:
+            name = self._safe_text(item.get("hrName"))
+            # 경마장 코드: API 응답의 meet 필드 우선, 없으면 주입된 _meet_code 사용합니다.
+            meet_code = self._normalize_meet_code(item.get("meet")) or item.get("_meet_code")
+
+            if not name or not meet_code:
+                anomaly_count += 1
+                continue
+
+            updates = {
+                # nameSp 는 소속조 이름이므로 eng_name에 쓰지 않습니다.
+                # 영문마명은 경주성적·경주기록 API(hrNameEn)에서 별도 수집됩니다.
+                "sex": self._safe_text(item.get("sex")),
+                "origin": self._safe_text(item.get("prdCty")),    # 생산국
+                "meet_code": meet_code,
+                "rating_1": self._safe_decimal(item.get("rating1")),
+                "rating_2": self._safe_decimal(item.get("rating2")),
+                "rating_3": self._safe_decimal(item.get("rating3")),
+                "rating_4": self._safe_decimal(item.get("rating4")),
+                "is_active": True,
+            }
+
+            null_count += self._count_null_values(
+                updates, ignore_keys={"is_active"}
+            )
+
+            # horses 테이블에는 (name) 단독 유니크 제약이 없어 get-then-update 패턴을 사용합니다.
+            horse = await self.db.scalar(
+                select(Horse).where(Horse.name == name).order_by((Horse.meet_code == meet_code).desc())
+            )
+
+            if horse is None:
+                horse = Horse(name=name, created_at=datetime.now(), updated_at=datetime.now(), **updates)
+                self.db.add(horse)
+            else:
+                for key, value in updates.items():
+                    if value is not None:
+                        setattr(horse, key, value)
+                horse.updated_at = datetime.now()
+
+            await self.db.flush()
+            records_collected += 1
+
+        return records_collected, null_count, anomaly_count
+
+    async def _save_horse_result_items(self, items: list[dict[str, Any]]) -> tuple[int, int, int]:
+        # API: API15_2/raceHorseResult_2 — 경주마 성적 정보 (통산/최근1년 승률·복승률)
+        records_collected = 0
+        null_count = 0
+        anomaly_count = 0
+
+        for item in items:
+            name = self._safe_text(item.get("hrName"))
+            meet_code = self._normalize_meet_code(item.get("meet")) or item.get("_meet_code")
+
+            if not name or not meet_code:
+                anomaly_count += 1
+                continue
+
+            # winRateT/winRateY/plcRateT 모두 % 단위 → 0~1 소수로 변환
+            updates = {
+                "win_rate_total": self._pct_to_decimal(item.get("winRateT")),
+                "win_rate_recent": self._pct_to_decimal(item.get("winRateY")),
+                "place_rate_total": self._pct_to_decimal(item.get("plcRateT")),
+                "debut_year": self._parse_year_from_date8(item.get("debut")),
+                "meet_code": meet_code,
+                "is_active": True,
+            }
+
+            null_count += self._count_null_values(updates, ignore_keys={"is_active", "meet_code"})
+
+            horse = await self.db.scalar(
+                select(Horse).where(Horse.name == name).order_by((Horse.meet_code == meet_code).desc())
+            )
+            if horse is None:
+                horse = Horse(name=name, created_at=datetime.now(), updated_at=datetime.now(), **updates)
+                self.db.add(horse)
+            else:
+                for key, value in updates.items():
+                    if value is not None:
+                        setattr(horse, key, value)
+                horse.updated_at = datetime.now()
+
+            await self.db.flush()
+            records_collected += 1
+
+        return records_collected, null_count, anomaly_count
+
+    async def _save_horse_detail_items(self, items: list[dict[str, Any]]) -> tuple[int, int, int]:
+        # API: API8_2/raceHorseInfo_2 — 경주마 상세정보 (모마명·생년월일 포함)
+        records_collected = 0
+        null_count = 0
+        anomaly_count = 0
+
+        for item in items:
+            name = self._safe_text(item.get("hrName"))
+            meet_code = self._normalize_meet_code(item.get("meet")) or item.get("_meet_code")
+
+            if not name or not meet_code:
+                anomaly_count += 1
+                continue
+
+            # 모마명 필드명: API 버전에 따라 motherName 또는 mName으로 다를 수 있음
+            mother_name = (
+                self._safe_text(item.get("motherName"))
+                or self._safe_text(item.get("mName"))
+            )
+
+            updates = {
+                "sex": self._safe_text(item.get("sex")),
+                "origin": self._safe_text(item.get("prdCty")),
+                "birth_year": self._parse_year_from_date8(item.get("birthday")),
+                "mother_name": mother_name,
+                "meet_code": meet_code,
+                "is_active": True,
+            }
+
+            null_count += self._count_null_values(updates, ignore_keys={"is_active", "meet_code"})
+
+            horse = await self.db.scalar(
+                select(Horse).where(Horse.name == name).order_by((Horse.meet_code == meet_code).desc())
+            )
+            if horse is None:
+                horse = Horse(name=name, created_at=datetime.now(), updated_at=datetime.now(), **updates)
+                self.db.add(horse)
+            else:
+                for key, value in updates.items():
+                    if value is not None:
+                        setattr(horse, key, value)
+                horse.updated_at = datetime.now()
+
+            await self.db.flush()
+            records_collected += 1
+
+        return records_collected, null_count, anomaly_count
+
+    async def _save_jockey_result_items(self, items: list[dict[str, Any]]) -> tuple[int, int, int]:
+        # API: API11_1/jockeyResult_1 — 기수 성적 정보 (승률 직접 제공, % 단위)
+        records_collected = 0
+        null_count = 0
+        anomaly_count = 0
+
+        for item in items:
+            license_no = self._safe_text(item.get("jkNo"))
+            name = self._safe_text(item.get("jkName"))
+            meet_code = self._normalize_meet_code(item.get("meet"))
+
+            if not name or not license_no or not meet_code:
+                anomaly_count += 1
+                continue
+
+            payload = {
+                "win_rate_total": self._pct_to_decimal(item.get("winRateT")),
+                "win_rate_recent": self._pct_to_decimal(item.get("winRateY")),
+                "place_rate_total": self._pct_to_decimal(item.get("plcRateT")),
+                "updated_at": datetime.now(),
+            }
+
+            null_count += self._count_null_values(payload, ignore_keys={"updated_at"})
+
+            await self.db.execute(
+                insert(Jockey)
+                .values(
+                    name=name,
+                    meet_code=meet_code,
+                    license_no=license_no,
+                    created_at=datetime.now(),
+                    **payload,
+                )
+                .on_conflict_do_update(
+                    index_elements=["license_no", "meet_code"],
+                    set_={k: v for k, v in payload.items()},
+                )
+            )
+            records_collected += 1
+
+        return records_collected, null_count, anomaly_count
+
+    async def _save_track_condition_items(self, items: list[dict[str, Any]]) -> tuple[int, int, int]:
+        # API: API189_1/Track_1 — 경주로 정보 (함수율·날씨·경주로상태)
+        records_collected = 0
+        null_count = 0
+        anomaly_count = 0
+
+        for item in items:
+            meet_code = self._normalize_meet_code(item.get("meet")) or item.get("_meet_code")
+            rc_date = self._parse_compact_date(item.get("rcDate")) or item.get("_rc_date")
+            race_no = self._safe_int(item.get("rcNo"))
+
+            if not meet_code or rc_date is None or race_no is None:
+                anomaly_count += 1
+                continue
+
+            race = await self._get_race(meet_code, rc_date, race_no)
+            if race is None:
+                anomaly_count += 1
+                continue
+
+            moisture = self._safe_decimal(item.get("moistContent"))
+            weather = self._safe_text(item.get("weather"))
+            track_cond = self._parse_track_condition(item.get("budrCondition"))
+
+            null_count += sum(1 for v in (moisture, weather, track_cond) if v is None)
+
+            if moisture is not None:
+                race.moisture_level = moisture
+            if weather is not None:
+                race.weather = weather
+            if track_cond is not None:
+                race.track_condition = track_cond
+            race.updated_at = datetime.now()
+            await self.db.flush()
+            records_collected += 1
+
+        return records_collected, null_count, anomaly_count
 
     async def _save_race_schedule_items(self, items: list[dict[str, Any]]) -> tuple[int, int, int]:
         records_collected = 0
@@ -907,6 +1590,52 @@ class DataService:
 
         text_value = str(raw_value).strip()
         return text_value if text_value else None
+
+    @staticmethod
+    def _calc_rate(win_count: Any, total_count: Any) -> str | None:
+        """승수/출전수로 승률(0~1)을 계산합니다. 유효하지 않으면 None을 반환합니다."""
+        try:
+            wins = int(Decimal(str(win_count)))
+            total = int(Decimal(str(total_count)))
+            if total <= 0:
+                return None
+            return str(round(wins / total, 4))
+        except Exception:
+            return None
+
+    @staticmethod
+    def _calc_place_rate(cnt1: Any, cnt2: Any, cnt3: Any, total: Any) -> str | None:
+        """(1착+2착+3착)/총출주로 연대율(0~1)을 계산합니다."""
+        try:
+            placed = int(Decimal(str(cnt1 or 0))) + int(Decimal(str(cnt2 or 0))) + int(Decimal(str(cnt3 or 0)))
+            total_cnt = int(Decimal(str(total)))
+            if total_cnt <= 0:
+                return None
+            return str(round(placed / total_cnt, 4))
+        except Exception:
+            return None
+
+    @staticmethod
+    def _pct_to_decimal(raw_value: Any) -> Decimal | None:
+        """API가 % 단위로 내려보내는 승률값을 0~1 소수로 변환합니다 (예: 15.3 → 0.1530)."""
+        if raw_value in (None, "", "-"):
+            return None
+        try:
+            pct = Decimal(str(raw_value))
+            return (pct / 100).quantize(Decimal("0.0001"))
+        except Exception:
+            return None
+
+    @staticmethod
+    def _parse_year_from_date8(raw_value: Any) -> int | None:
+        """YYYYMMDD 또는 YYYY 형식에서 연도(int)를 추출합니다."""
+        if raw_value in (None, "", "-", "0", 0):
+            return None
+        text = str(raw_value).strip()
+        if len(text) >= 4 and text[:4].isdigit():
+            year = int(text[:4])
+            return year if 1900 <= year <= 2100 else None
+        return None
 
     @staticmethod
     def _count_null_values(payload: dict[str, Any], ignore_keys: set[str] | None = None) -> int:

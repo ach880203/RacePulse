@@ -65,6 +65,14 @@ RUNNABLE_JOBS: dict[str, str] = {
     "collect_daily_info":              "당일 출전 정보 수집",
     "collect_weekly":                  "주간 마스터 데이터 수집",
     "collect_monthly":                 "월간 마스터 데이터 수집",
+    # 마스터 데이터 개별 수동 실행 (테스트·장애 복구 시 사용)
+    "collect_master_jockeys":          "기수 마스터 데이터 수집",
+    "collect_master_trainers":         "조교사 마스터 데이터 수집",
+    "collect_master_horses":           "마필 마스터 데이터 수집",
+    "collect_jockey_results":          "기수 성적 수집",
+    "collect_horse_results":           "경주마 성적 수집",
+    "collect_horse_details":           "경주마 상세정보 수집",
+    "collect_track_conditions":        "경주로 상태 수집",
     "collect_weather_short":           "단기예보 수집",
     "collect_weather_mid":             "중기예보 수집",
     "reset_daily_counter":             "일일 카운터 리셋",
@@ -228,6 +236,62 @@ async def _dispatch_job(job_name: str) -> dict:
     if job_name == "reset_daily_counter":
         await redis_svc.reset_daily_counter()
         return {"reset": True}
+
+    # -----------------------------------------------------------------------
+    # 마스터 데이터 개별 수집 (기수 / 조교사 / 마필)
+    # -----------------------------------------------------------------------
+    if job_name in (
+        "collect_master_jockeys", "collect_master_trainers", "collect_master_horses",
+        "collect_jockey_results", "collect_horse_results", "collect_horse_details",
+    ):
+        results = {}
+        for meet_code in ALL_MEET_CODES:
+            async with AsyncSessionLocal() as session:
+                kra = KRAApiService()
+                try:
+                    ds = DataService(session, kra)
+                    if job_name == "collect_master_jockeys":
+                        summary = await ds.collect_master_jockeys([meet_code])
+                    elif job_name == "collect_master_trainers":
+                        summary = await ds.collect_master_trainers([meet_code])
+                    elif job_name == "collect_master_horses":
+                        summary = await ds.collect_master_horses([meet_code])
+                    elif job_name == "collect_jockey_results":
+                        summary = await ds.collect_jockey_results([meet_code])
+                    elif job_name == "collect_horse_results":
+                        summary = await ds.collect_horse_results([meet_code])
+                    else:
+                        summary = await ds.collect_horse_details([meet_code])
+                    results[meet_code] = {
+                        "status": summary.status,
+                        "recordsCollected": summary.records_collected,
+                        "message": summary.message,
+                    }
+                except Exception as exc:
+                    results[meet_code] = {"status": "ERROR", "message": str(exc)}
+                finally:
+                    await kra.close()
+        return results
+
+    if job_name == "collect_track_conditions":
+        target_date = date.today()
+        results = {}
+        for meet_code in ALL_MEET_CODES:
+            async with AsyncSessionLocal() as session:
+                kra = KRAApiService()
+                try:
+                    ds = DataService(session, kra)
+                    summary = await ds.collect_track_conditions(meet_code=meet_code, rc_date=target_date)
+                    results[meet_code] = {
+                        "status": summary.status,
+                        "recordsCollected": summary.records_collected,
+                        "message": summary.message,
+                    }
+                except Exception as exc:
+                    results[meet_code] = {"status": "ERROR", "message": str(exc)}
+                finally:
+                    await kra.close()
+        return results
 
     # -----------------------------------------------------------------------
     # KRA 수집 작업 (날짜/경마장 코드 자동 결정)

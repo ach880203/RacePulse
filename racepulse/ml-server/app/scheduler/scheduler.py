@@ -337,8 +337,25 @@ class CollectionScheduler:
         """토/일/월 09:05 — 경주 당일 마체중, 기수 변경, 트랙 상태를 업데이트합니다."""
         await self._run_with_guard(
             "collect_daily_info", 3600,
-            self._collect_entries_for_dates, [date.today()]
+            self._collect_daily_info_impl, date.today()
         )
+
+    async def _collect_daily_info_impl(self, target_date: date) -> None:
+        """출전 정보(마체중/기수 등) + 경주로 상태(함수율/날씨)를 함께 수집합니다."""
+        for meet_code in ALL_MEET_CODES:
+            async with AsyncSessionLocal() as session:
+                kra = KRAApiService()
+                try:
+                    ds = DataService(session, kra)
+                    await ds.collect_entry_info(meet_code=meet_code, rc_date=target_date)
+                    await ds.collect_track_conditions(meet_code=meet_code, rc_date=target_date)
+                except KRARateLimitExceededError:
+                    logger.warning("[당일 수집] Rate Limit 초과. meet=%s 수집 중단.", meet_code)
+                    break
+                except Exception as exc:
+                    logger.error("[당일 수집] %s 오류: %s", meet_code, exc)
+                finally:
+                    await kra.close()
 
     async def _collect_entries_for_dates(self, target_dates: list[date]) -> None:
         """지정한 날짜들의 출전표를 3개 경마장 모두 수집합니다."""
@@ -390,11 +407,55 @@ class CollectionScheduler:
                     await kra.close()
 
     async def _collect_monthly_master(self) -> None:
-        """월간 마스터 데이터(기수/조교사/마필)를 수집합니다.
-        TODO: [Phase 2] 기수/조교사/마필 전용 API 엔드포인트 연동 후 구현
-        """
-        logger.info("[월간 마스터] 수집 시작 — Phase 2에서 기수/조교사/마필 API 연동 예정")
-        # TODO: [Phase 2] KRAApiService에 fetch_jockey_list, fetch_trainer_list 추가 후 구현
+        """월간 마스터 데이터(기수/조교사/마필 기본·성적·상세)를 경마장별로 전체 수집합니다."""
+        for meet_code in ALL_MEET_CODES:
+            async with AsyncSessionLocal() as session:
+                kra = KRAApiService()
+                try:
+                    ds = DataService(session, kra)
+
+                    # 기수: 기본정보(jockeyInfo_1) + 성적(jockeyResult_1)
+                    jockey_summary = await ds.collect_master_jockeys([meet_code])
+                    logger.info(
+                        "[월간 마스터] 기수 기본정보 완료. meet=%s, 수집=%d건, 상태=%s",
+                        meet_code, jockey_summary.records_collected, jockey_summary.status,
+                    )
+                    jockey_result_summary = await ds.collect_jockey_results([meet_code])
+                    logger.info(
+                        "[월간 마스터] 기수 성적 완료. meet=%s, 수집=%d건, 상태=%s",
+                        meet_code, jockey_result_summary.records_collected, jockey_result_summary.status,
+                    )
+
+                    # 조교사: 기본정보+승률 (trainerInfo_1 직접 제공)
+                    trainer_summary = await ds.collect_master_trainers([meet_code])
+                    logger.info(
+                        "[월간 마스터] 조교사 수집 완료. meet=%s, 수집=%d건, 상태=%s",
+                        meet_code, trainer_summary.records_collected, trainer_summary.status,
+                    )
+
+                    # 마필: 명단(racehorselist) + 성적(raceHorseResult_2) + 상세(raceHorseInfo_2)
+                    horse_summary = await ds.collect_master_horses([meet_code])
+                    logger.info(
+                        "[월간 마스터] 마필 명단 완료. meet=%s, 수집=%d건, 상태=%s",
+                        meet_code, horse_summary.records_collected, horse_summary.status,
+                    )
+                    horse_result_summary = await ds.collect_horse_results([meet_code])
+                    logger.info(
+                        "[월간 마스터] 마필 성적 완료. meet=%s, 수집=%d건, 상태=%s",
+                        meet_code, horse_result_summary.records_collected, horse_result_summary.status,
+                    )
+                    horse_detail_summary = await ds.collect_horse_details([meet_code])
+                    logger.info(
+                        "[월간 마스터] 마필 상세 완료. meet=%s, 수집=%d건, 상태=%s",
+                        meet_code, horse_detail_summary.records_collected, horse_detail_summary.status,
+                    )
+                except KRARateLimitExceededError:
+                    logger.warning("[월간 마스터] Rate Limit 초과로 %s 수집 중단.", meet_code)
+                    break
+                except Exception as exc:
+                    logger.exception("[월간 마스터] %s 수집 중 오류: %s", meet_code, exc)
+                finally:
+                    await kra.close()
 
     # =========================================================================
     # 날씨 수집

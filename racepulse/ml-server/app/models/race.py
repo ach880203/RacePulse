@@ -118,6 +118,7 @@ class Race(Base):
     )
     prize_money: Mapped[Optional[int]] = mapped_column(BigInteger)
     weather: Mapped[Optional[str]] = mapped_column(String(50))
+    moisture_level: Mapped[Optional[Decimal]] = mapped_column(Numeric(4, 1))
     start_time: Mapped[Optional[time]] = mapped_column(Time)
     status: Mapped[RaceStatusEnum] = mapped_column(
         build_db_enum(RaceStatusEnum, "race_status"),

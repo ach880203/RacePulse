@@ -101,7 +101,7 @@ function RaceDetailPage() {
             { label: '상태',       value: race.status === 'SCHEDULED' ? '예정' : race.status === 'COMPLETED' ? '완료' : '취소' },
             { label: '경주 등급',  value: race.raceClass ?? '일반' },
             { label: '날씨',       value: race.weather ?? '-' },
-            { label: '상금',       value: race.prize ? `${race.prize.toLocaleString()}원` : '미공개' },
+            { label: '상금',       value: race.prizeMoney ? `${race.prizeMoney.toLocaleString()}원` : '미공개' },
           ].map(({ label, value }) => (
             <div key={label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="text-xs text-white/45">{label}</p>
