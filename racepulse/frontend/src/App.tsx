@@ -47,6 +47,7 @@ const SettingsPage = lazy(() => import('./pages/user/SettingsPage'))
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
 const KakaoCallbackPage = lazy(() => import('./pages/auth/KakaoCallbackPage'))
+const CollectionStatusPage = lazy(() => import('./pages/admin/CollectionStatusPage'))
 const UnauthorizedPage = lazy(() => import('./pages/error/UnauthorizedPage'))
 const ServerErrorPage = lazy(() => import('./pages/error/ServerErrorPage'))
 const NotFoundPage = lazy(() => import('./pages/error/NotFoundPage'))
@@ -143,7 +144,7 @@ function App() {
 
           {/* 관리자 페이지 */}
           <Route path="/admin"                          element={<Placeholder name="관리자 대시보드" />} />
-          <Route path="/admin/collection"               element={<Placeholder name="수집 현황" />} />
+          <Route path="/admin/collection"               element={<CollectionStatusPage />} />
           {/* 에러 페이지 */}
           <Route path="/unauthorized"                   element={<UnauthorizedPage/>} />
           <Route path="/forbidden"                      element={<UnauthorizedPage variant="forbidden" />} />
