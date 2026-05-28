@@ -616,6 +616,74 @@ ADD COLUMN moisture_level NUMERIC(4, 1)
 
 ---
 
+---
+
+### [날짜: 2026-05-28] 20차 세션 — 데이터 누락 진단 + 마스터 수집 실행 + Codex 프롬프트 #7~8
+
+- **참석**: ML, ARCH, FE, 창현님
+
+#### 이슈 1: FE 빌드 실패 (야간 파이프라인 에러)
+
+- **증상**: 2026-05-28 05:00 nightly_pipeline FE 빌드 → `{'success': False, 'error': ''}`
+- **원인**: `src/types/person.ts` 5번째 줄 — `MeetCode` 타입을 import 했으나 `meetCode: string`으로 선언 → TypeScript TS6133(미사용 import) 빌드 에러
+- **수정**: `Jockey`, `Trainer` 인터페이스의 `meetCode: string` → `meetCode: MeetCode` (타입 안전성도 향상)
+- **커밋**: `fix: person.ts에서 MeetCode import 미사용 TS 에러 수정`
+
+#### 이슈 2: 마체중·배당 누락 (5/23, 5/24 경주)
+
+**원인 분석**:
+- race_entries `horse_weight`, `odds_win` 컬럼: 5/17까지 정상 (131k건), 5/23~24 전부 null
+- race_entries 저장 경로 2종:
+  - `_save_entry_items` (schedule 수집) → horse_weight / odds_win **저장 안 함**
+  - `_save_result_items` (result 수집) → `wgHr`, `winOdds` 필드로 저장 ✅
+- 5/23, 5/24: schedule만 수집되어 race_entries 생성됨. bulk_collect가 result 시도 시점에 KRA API에 데이터 아직 없었음 → race_results 0건
+
+**즉시 조치 (수동 재수집)**:
+
+| 경마장·날짜 | 결과 | 수집 건수 |
+|------------|------|---------|
+| SC 2026-05-23 | SUCCESS | 109건 |
+| SC 2026-05-24 | SUCCESS | 108건 |
+| JJ 2026-05-23 | SUCCESS | 63건 |
+| BU 2026-05-24 | SUCCESS | 78건 |
+| BU 2026-05-23 | PARTIAL 0건 (경마 없음) | — |
+| JJ 2026-05-24 | PARTIAL 0건 (경마 없음) | — |
+
+- 5/25(일), 5/28(목): PARTIAL 0건 → 해당 날짜 경마 없음 (정상)
+
+**근본 해결 → Codex 프롬프트 #7** 작성:
+- `nightly_pipeline.py`에 Phase 0 추가: 최근 14일 중 race_results 없는 경주를 자동 results 재수집
+- 파일: `codex-prompts/phase4-07-nightly-result-resync.md`
+
+#### 이슈 3: 기수·조교사·말 상세 정보 전부 null
+
+**원인 분석**:
+
+| 테이블 | 건수 | birth_year | debut_year | win_rate_total |
+|--------|------|-----------|-----------|---------------|
+| jockeys | 164 | 0 | 0 | 0 |
+| trainers | 145 | 0 | 0 | 0 |
+| horses | 10,574 | - | - | father_name 0, color 0 |
+
+- `collect_master_jockeys`, `collect_master_trainers`, `collect_master_horses`, `collect_horse_details`, `collect_jockey_results` 함수가 이미 구현되어 있으나 nightly pipeline에 한 번도 연결 안 됨
+- admin.py `RUNNABLE_JOBS`에는 등록되어 수동 실행만 가능한 상태
+
+**즉시 조치**: Admin API로 SC/BU/JJ 전체 일괄 수집 실행 (백그라운드 진행)
+
+**근본 해결 → Codex 프롬프트 #8** 작성:
+- nightly_pipeline.py 매주 월요일 마스터 데이터 동기화 추가
+- `totalHorseInfo_1` API로 부마명(`faName`)·모색(`color`) 수집 코드 신규 추가 (kra_api.py + data_service.py + admin.py)
+- 파일: `codex-prompts/phase4-08-master-data-weekly-sync.md`
+
+#### 커밋 이력 (20차 세션)
+
+| 커밋 | 내용 |
+|------|------|
+| `fix: person.ts에서 MeetCode import 미사용 TS 에러 수정` | FE 빌드 에러 수정 |
+| `docs: Phase 4 Codex 프롬프트 #7~8 추가` | 결과 재수집 자동화 + 마스터 데이터 동기화 |
+
+---
+
 ## 📌 새 세션 인수인계 체크리스트
 
 새 채팅을 열 때 반드시 이 파일(`horse_racing_team_v4.md`)을 읽고 시작할 것.
@@ -638,6 +706,13 @@ ADD COLUMN moisture_level NUMERIC(4, 1)
   - 월간 수집 스케줄러 완성 (_collect_monthly_master)
   - 당일 수집 트랙 상태 포함 (_collect_daily_info_impl)
   - admin.py RUNNABLE_JOBS 4종 + dispatch 분기 추가
+  - [20차] FE 빌드 에러 수정 (person.ts MeetCode TS6133)
+  - [20차] 5/23, 5/24 마체중·배당 수동 재수집 완료
+  - [20차] 기수/조교사/말 마스터 데이터 일괄 수집 실행
+
+📋 Codex 위임 대기 중 (프롬프트 작성 완료)
+  - phase4-07: nightly_pipeline Phase 0 추가 (결과 자동 재수집)
+  - phase4-08: 주간 마스터 데이터 동기화 + 부마명/모색 수집 신규 구현
 
 🔴 다음 (feat/phase4-docker)
   1. ML Dockerfile: python=:3.11-slim → python:3.11-slim
@@ -674,6 +749,16 @@ ADD COLUMN moisture_level NUMERIC(4, 1)
 - ✅ Task Scheduler 03:00 BulkCollect + 05:00 NightlyPipeline: SYSTEM 계정 (자동)
 - ⚠️ PC 재부팅 시 FastAPI + Spring Boot 수동 재실행 필요
 
+### 데이터 현황 (2026-05-28 기준)
+| 테이블 | 건수 | 비고 |
+|--------|------|------|
+| races | ~12,900+ | 5/23·24 결과 수집 완료 |
+| horses | 10,574 | father_name·color = 0 (Codex #8 적용 후 채워짐) |
+| race_entries | ~132,800+ | 5/23·24 마체중·배당 채워짐 |
+| race_results | ~132,400+ | 5/23·24 신규 수집 완료 |
+| jockeys | 164 | birth_year·win_rate 현재 0 (마스터 수집 후 채워짐) |
+| trainers | 145 | birth_year·win_rate 현재 0 (마스터 수집 후 채워짐) |
+
 ### 주요 파일 경로 참조
 ```
 프로젝트 루트:        C:\Programmer\Work\horse racing\
@@ -684,6 +769,7 @@ DB 마이그레이션:       racepulse/backend/src/main/resources/db/migration/
 Docker:               racepulse/docker-compose.yml
 ML Dockerfile:        racepulse/ml-server/Dockerfile
 자동화 스크립트:       racepulse/ml-server/scripts/
+Codex 프롬프트:       codex-prompts/ (phase4-01~08.md)
 진단 문서:            racepulse/PROJECT_ISSUE_AUDIT_2026-05-27.md
 회의록 v4:            horse_racing_team_v4.md (이 파일)
 ```
