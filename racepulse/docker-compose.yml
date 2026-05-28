@@ -59,27 +59,26 @@ services:
   # Spring Boot - 백엔드 API 서버
   # ---------------------------------------------------------------------------
   backend:
-    # TODO: backend/ 디렉토리에 Spring Boot 코드 생성 후 아래 주석 해제
-    # build:
-    #   context: ./backend
-    #   dockerfile: Dockerfile
-    image: eclipse-temurin:21-jre  # 임시 이미지 (실제 앱 없이 컨테이너만 기동 확인용)
+    # backend/ 디렉토리의 실제 Spring Boot 애플리케이션을 Dockerfile로 빌드합니다.
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: racepulse-backend
     restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
-      # Spring 프로파일 (dev 환경에서는 application-dev.yml 사용)
-      SPRING_PROFILES_ACTIVE: dev
+      # Spring 프로파일은 컨테이너용 환경변수를 직접 읽도록 docker로 지정합니다.
+      SPRING_PROFILES_ACTIVE: docker
 
-      # 데이터베이스 연결 정보 (컨테이너 간 통신은 서비스명으로)
-      DB_URL: jdbc:postgresql://postgres:5432/racepulse
-      DB_USERNAME: racepulse
-      DB_PASSWORD: racepulse_dev
+      # 데이터베이스 연결 정보입니다. 컨테이너 사이에서는 localhost가 아니라 서비스명(postgres)을 사용해야 합니다.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/racepulse
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-racepulse}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-racepulse_dev}
 
       # Redis 연결 정보
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
 
       # JWT 시크릿 (개발용 임시값 - 운영에서는 반드시 변경)
       JWT_SECRET: ${JWT_SECRET}
@@ -117,8 +116,8 @@ services:
     ports:
       - "8000:8000"
     environment:
-      # 데이터베이스 연결 (SQLAlchemy 형식)
-      DB_URL: postgresql://racepulse:racepulse_dev@postgres:5432/racepulse
+      # 데이터베이스 연결 (SQLAlchemy 비동기 드라이버 형식)
+      DB_URL: postgresql+asyncpg://racepulse:racepulse_dev@postgres:5432/racepulse
 
       # Redis 연결
       REDIS_HOST: redis
