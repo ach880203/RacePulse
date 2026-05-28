@@ -65,10 +65,10 @@ function PredictionResult({
         <div className="w-6 text-center">
           {isTop1Hit ? (
             // 1위 적중 — 골드 체크
-            <span className="text-lg text-brand-gold-400" title="Top-1 적중">✓</span>
+            <span className="text-lg text-brand-gold-400" title="1순위 적중">✓</span>
           ) : isTop3Hit ? (
             // Top-3 적중 — 초록 체크
-            <span className="text-lg text-green-400" title="Top-3 적중">✓</span>
+            <span className="text-lg text-green-400" title="3순위권 적중">✓</span>
           ) : (
             // 미적중 — 빨간 X
             <span className="text-lg text-red-400" title="미적중">✗</span>

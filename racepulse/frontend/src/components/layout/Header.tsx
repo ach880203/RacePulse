@@ -45,7 +45,7 @@ function Header() {
               레이스펄스
             </span>
             <span className="text-xs tracking-[0.24em] text-white/55">
-              DATA RACING PLATFORM
+              데이터 경마 분석 플랫폼
             </span>
           </span>
         </Link>

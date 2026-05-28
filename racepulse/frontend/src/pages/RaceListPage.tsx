@@ -176,7 +176,7 @@ function RaceListPage() {
       <div className="flex flex-col gap-8">
         {/* 페이지 헤더 */}
         <section className="space-y-3">
-          <p className="text-sm tracking-[0.2em] text-brand-gold-400">RACE BOARD</p>
+          <p className="text-sm tracking-[0.2em] text-brand-gold-400">경주 목록</p>
           <h1 className="font-heading text-4xl text-white">경주 목록</h1>
           <p className="max-w-2xl text-sm leading-7 text-white/65">
             날짜와 경마장으로 경주를 필터링합니다.

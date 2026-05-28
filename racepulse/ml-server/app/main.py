@@ -70,6 +70,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+@app.middleware("http")
+async def add_charset_header(request, call_next):
+    # 일부 클라이언트는 JSON 응답에 charset이 없으면 한글을 잘못 해석할 수 있어 명시적으로 붙입니다.
+    response = await call_next(request)
+    if response.headers.get("content-type", "").startswith("application/json"):
+        response.headers["content-type"] = "application/json; charset=utf-8"
+    return response
+
 # -----------------------------------------------------------------------------
 # CORS 설정 (Cross-Origin Resource Sharing)
 # CORS란? 다른 주소에서 이 서버로 요청하는 것을 허용할지 결정하는 보안 설정
