@@ -42,6 +42,9 @@ const SearchPage = lazy(() => import('./pages/SearchPage'))
 const ProfilePage = lazy(() => import('./pages/user/ProfilePage'))
 const FavoritesPage = lazy(() => import('./pages/user/FavoritesPage'))
 const SettingsPage = lazy(() => import('./pages/user/SettingsPage'))
+const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
+const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
+const KakaoCallbackPage = lazy(() => import('./pages/auth/KakaoCallbackPage'))
 const UnauthorizedPage = lazy(() => import('./pages/error/UnauthorizedPage'))
 const ServerErrorPage = lazy(() => import('./pages/error/ServerErrorPage'))
 const NotFoundPage = lazy(() => import('./pages/error/NotFoundPage'))
@@ -123,11 +126,11 @@ function App() {
           <Route path="/demo"                           element={<ComponentDemoPage />} />
 
           {/* ----------------------------------------------------------------
-              인증 페이지 — TODO: [Phase 2] 카카오 로그인 연동
+              인증 페이지 — 실제 로그인/회원가입/카카오 콜백 화면
               ---------------------------------------------------------------- */}
-          <Route path="/login"                          element={<Placeholder name="로그인" />} />
-          <Route path="/register"                       element={<Placeholder name="회원가입" />} />
-          <Route path="/auth/kakao/callback"            element={<Placeholder name="카카오 OAuth 콜백" />} />
+          <Route path="/login"                          element={<LoginPage />} />
+          <Route path="/register"                       element={<RegisterPage />} />
+          <Route path="/auth/kakao/callback"            element={<KakaoCallbackPage />} />
 
           {/* 로그인 필요 페이지 */}
           <Route element={<PrivateRoute />}>
