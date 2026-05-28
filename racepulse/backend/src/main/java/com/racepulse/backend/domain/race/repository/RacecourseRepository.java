@@ -1,7 +1,10 @@
 package com.racepulse.backend.domain.race.repository;
 
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import com.racepulse.backend.domain.race.entity.MeetCode;
 import com.racepulse.backend.domain.race.entity.Racecourse;
 
 // =============================================================================
@@ -12,4 +15,7 @@ import com.racepulse.backend.domain.race.entity.Racecourse;
 // =============================================================================
 
 public interface RacecourseRepository extends JpaRepository<Racecourse, Long> {
+
+    // meetCode는 화면 URL에서 사용하는 공개 코드라서 ID를 몰라도 경마장 1건을 찾을 수 있게 합니다.
+    Optional<Racecourse> findByMeetCode(MeetCode meetCode);
 }

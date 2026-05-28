@@ -61,6 +61,7 @@ public class SecurityConfig {
                         // 인증 없이 접근 가능한 경로들
                         .requestMatchers(
                                 "/api/v1/health",
+                                "/api/v1/home",
                                 "/api/v1/auth/**",          // 로그인, 회원가입, 카카오 OAuth
                                 "/api/v1/push/vapid-public-key", // VAPID 공개키는 인증 없이 조회 가능
                                 "/swagger-ui/**",
