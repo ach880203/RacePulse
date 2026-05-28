@@ -30,6 +30,8 @@ const RaceListPage = lazy(() => import('./pages/RaceListPage'))
 const RaceDetailPage = lazy(() => import('./pages/race/RaceDetailPage'))
 const RaceEntriesPage = lazy(() => import('./pages/race/RaceEntriesPage'))
 const RacePredictionPage = lazy(() => import('./pages/race/RacePredictionPage'))
+const RaceResultPage = lazy(() => import('./pages/race/RaceResultPage'))
+const CommentaryPage = lazy(() => import('./pages/race/CommentaryPage'))
 const HorseListPage = lazy(() => import('./pages/horse/HorseListPage'))
 const HorseDetailPage = lazy(() => import('./pages/horse/HorseDetailPage'))
 const JockeyListPage = lazy(() => import('./pages/jockey/JockeyListPage'))
@@ -101,9 +103,9 @@ function App() {
           <Route path="/races"                          element={<RaceListPage />} />
           <Route path="/races/:raceId"                  element={<RaceDetailPage />} />
           <Route path="/races/:raceId/entries"          element={<RaceEntriesPage />} />
-          <Route path="/races/:raceId/result"           element={<Placeholder name="경주 결과" />} />
+          <Route path="/races/:raceId/result"           element={<RaceResultPage />} />
           <Route path="/races/:raceId/prediction"       element={<RacePredictionPage />} />
-          <Route path="/races/:raceId/commentary"       element={<Placeholder name="AI 해설" />} />
+          <Route path="/races/:raceId/commentary"       element={<CommentaryPage />} />
 
           {/* 경주마 관련 */}
           <Route path="/horses"                         element={<HorseListPage />} />

@@ -173,6 +173,7 @@ public class RaceService {
                     re.gate_no             AS "gateNo",
                     rr.rank                AS "finishOrder",
                     rr.record_time         AS "finishTime",
+                    rr.margin              AS "margin",
                     rr.final_odds          AS "finalOdds",
                     j.name                 AS "jockeyName"
                 FROM race_results rr
