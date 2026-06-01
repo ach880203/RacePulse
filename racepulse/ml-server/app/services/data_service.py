@@ -1369,9 +1369,15 @@ class DataService:
 
     async def _get_or_create_jockey(self, name: str, defaults: dict[str, Any]) -> Jockey:
         license_no = defaults.get("license_no")
+        meet_code = defaults.get("meet_code")
         statement = select(Jockey)
 
-        if license_no:
+        # license_no + meet_code 둘 다 있으면 함께 검색합니다.
+        # license_no만으로 검색하면 다른 meet_code의 동명 기수 row를 잡아 meet_code 업데이트 시
+        # UNIQUE(license_no, meet_code) 제약 위반이 발생합니다.
+        if license_no and meet_code:
+            statement = statement.where(Jockey.license_no == license_no, Jockey.meet_code == meet_code)
+        elif license_no:
             statement = statement.where(Jockey.license_no == license_no)
         else:
             statement = statement.where(Jockey.name == name)
@@ -1418,9 +1424,14 @@ class DataService:
 
     async def _get_or_create_trainer(self, name: str, defaults: dict[str, Any]) -> Trainer:
         license_no = defaults.get("license_no")
+        meet_code = defaults.get("meet_code")
         statement = select(Trainer)
 
-        if license_no:
+        # Jockey와 동일한 이유로 license_no + meet_code 함께 검색합니다.
+        # UNIQUE(license_no, meet_code) 제약 위반 방지.
+        if license_no and meet_code:
+            statement = statement.where(Trainer.license_no == license_no, Trainer.meet_code == meet_code)
+        elif license_no:
             statement = statement.where(Trainer.license_no == license_no)
         else:
             statement = statement.where(Trainer.name == name)
