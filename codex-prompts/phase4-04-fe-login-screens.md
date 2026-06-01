@@ -116,6 +116,21 @@ const KakaoCallbackPage = lazy(() => import('./pages/auth/KakaoCallbackPage'))
 
 ---
 
+## ⚠️ 프로젝트 필수 규칙
+
+### 커밋
+- 커밋 메시지: `feat: [prompt-4] FE 인증 화면 구현 (로그인/회원가입/카카오)`
+
+### FE 규칙
+- **axios**: 기존 `axiosInstance` 사용 — 새 axios 인스턴스 생성 금지 (`src/services/axiosInstance.ts`)
+  - 401 refresh 인터셉터, baseURL, 인증 헤더가 이미 포함되어 있음
+- **환경변수**: `http://localhost:8080` 하드코딩 절대 금지 — axiosInstance가 자동 처리
+- **Toast**: 기존 `Toast` 컴포넌트 재사용 (`src/components/Toast.tsx`) — 새로 만들지 말 것
+- **화면 문구**: 화면에 표시되는 모든 텍스트 한글 전용 (변수명·클래스명·enum·브랜드명 제외)
+- **라우팅**: `lazy()` + `Suspense` 패턴 유지 (App.tsx 번들 최적화)
+- **FE → Spring Boot만**: FastAPI(`localhost:8000`) 직접 호출 금지 — 모든 API는 Spring Boot 경유
+- **주석**: 각 함수의 역할과 에러 처리 이유 한 줄 이상
+
 ## 디자인 참고
 기존 컴포넌트들의 공통 패턴:
 ```tsx

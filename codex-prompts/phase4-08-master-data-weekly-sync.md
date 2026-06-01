@@ -146,6 +146,20 @@ async def collect_horse_details(self, meet_codes: list[str]) -> CollectionSummar
 
 ---
 
+## ⚠️ 프로젝트 필수 규칙
+
+### 커밋
+- 커밋 메시지: `feat: [prompt-8] 마스터 데이터 주간 동기화 + 부마명/모색 수집`
+
+### ML/Python 규칙
+- **기존 패턴 준수**: `collect_horse_details` 함수 구조(data_service.py:272) 그대로 따라서 구현
+- **에러 격리**: 예외 발생 시 해당 단계만 실패 — 전체 파이프라인 중단 금지
+- **KRA API 한도**: `status == "SKIPPED"` 시 해당 job만 건너뜀, 나머지 계속 진행
+- **경마장 코드 변환**: `_meet_code_to_api_value` 기존 함수 반드시 사용 (SC→"1", JJ→"2", BU→"3")
+- **로그**: 기존 로그 패턴 사용 — `print()` 직접 사용 금지
+- **주석**: 함수·중요 로직마다 WHY 설명 한 줄 이상
+- **선행 조건**: `nightly_pipeline.py`는 #7 작업 완료·커밋 후 수정 시작 (동일 파일 충돌 방지)
+
 ## 파일 위치
 
 - `racepulse/ml-server/app/services/kra_api.py`

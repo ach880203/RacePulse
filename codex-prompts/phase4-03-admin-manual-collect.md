@@ -78,6 +78,26 @@ GET /api/v1/admin/collection/trigger/status
 }
 ```
 
+## ⚠️ 프로젝트 필수 규칙
+
+### 커밋
+- 커밋 메시지: `feat: [prompt-3] 수동 수집 API + 관리자 수집 현황 화면`
+
+### BE 규칙
+- **예외 처리**: `ResponseStatusException` 금지 — `BusinessException(ErrorCode.XXX)` 사용
+- **공통 응답**: `ApiResponse<T>` 래퍼 필수
+- **권한**: `@PreAuthorize("hasRole('ADMIN')")` 기존 패턴 사용
+- **URL prefix**: `/api/v1/` 전체 적용
+- **민감키 노출 금지**: `application-dev.yaml`에 키 기본값 하드코딩 금지
+- **주석**: 각 메서드에 WHY 설명 한 줄 이상
+
+### FE 규칙
+- **axios**: 기존 `axiosInstance` 사용 — 새 axios 인스턴스 생성 금지 (`src/services/axiosInstance.ts`)
+- **환경변수**: API URL 하드코딩 금지 — axiosInstance의 baseURL이 자동 처리
+- **Toast**: 기존 `Toast` 컴포넌트 재사용 (`src/components/Toast.tsx`) — 새로 만들지 말 것
+- **화면 문구**: 화면에 표시되는 모든 텍스트 한글 전용 (변수명·클래스명·enum 제외)
+- **라우팅**: `lazy()` + `Suspense` 패턴 유지
+
 ### 코드 작성 규칙
 - `ADMIN` 권한은 기존 `@PreAuthorize("hasRole('ADMIN')")` 패턴 사용
 - FastAPI 호출은 `RestClient` 또는 `WebClient` 사용 (기존 코드 패턴 확인)

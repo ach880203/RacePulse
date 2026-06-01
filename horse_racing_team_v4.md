@@ -250,6 +250,50 @@
 
 ---
 
+## 📋 Codex 프롬프트 작성 원칙
+
+> **새 Codex 프롬프트를 작성할 때 반드시 `## ⚠️ 프로젝트 필수 규칙` 섹션을 포함해야 합니다.**
+> 규칙이 없으면 Codex가 프로젝트 컨벤션을 무시한 코드를 생성합니다.
+> (20차 세션에서 ResponseStatusException 오용, localhost 하드코딩 등 사례 발생)
+
+### 모든 프롬프트 공통
+```
+- 커밋 메시지: `feat: [prompt-N] 작업 설명` 형식 명시
+- 코드 주석: 함수·중요 로직마다 WHY를 설명하는 주석 한 줄 이상
+- 화면에 표시되는 모든 텍스트: 한글 전용 (변수명·클래스명·enum·브랜드명 제외)
+```
+
+### BE 프롬프트 포함 필수 규칙
+```
+- 예외 처리: ResponseStatusException 금지 → BusinessException(ErrorCode.XXX) 사용
+  (ErrorCode.java enum에 없으면 추가 후 사용)
+- 공통 응답: ApiResponse<T> 래퍼 필수 / 목록은 PageResponse<T>
+- URL prefix: /api/v1/ 전체 적용
+- application-dev.yaml 민감키 기본값 하드코딩 금지
+- 도메인 구조: Controller → Service → Repository 패턴 유지
+```
+
+### FE 프롬프트 포함 필수 규칙
+```
+- axios: 기존 axiosInstance 사용 (src/services/axiosInstance.ts) — 새 인스턴스 생성 금지
+- 환경변수: localhost URL 하드코딩 금지 — axiosInstance baseURL이 자동 처리
+- Toast: 기존 Toast 컴포넌트 재사용 (src/components/Toast.tsx) — 새로 만들지 말 것
+- FE → Spring Boot만: FastAPI(8000) 직접 호출 절대 금지
+- 라우팅: lazy() + Suspense 패턴 유지
+- data_status: READY / UPDATING / COLLECTED / JOCKEY_CHANGED
+```
+
+### ML/Python 프롬프트 포함 필수 규칙
+```
+- 기존 함수 구조와 동일한 패턴으로 작성
+- 에러 격리: 예외 발생 시 해당 단계만 실패 — 전체 파이프라인 중단 금지
+- KRA API SKIPPED 응답: 해당 job만 건너뜀, 파이프라인 계속 진행
+- 로그: 기존 로그 패턴 사용, print() 직접 사용 금지
+- nightly_pipeline.py 수정 시: 동일 파일 건드리는 프롬프트는 반드시 순차 실행
+```
+
+---
+
 ## 📅 전체 마일스톤
 
 | Phase | 목표 | 완료 |
@@ -618,6 +662,59 @@ ADD COLUMN moisture_level NUMERIC(4, 1)
 
 ---
 
+### [날짜: 2026-06-01] 21차 세션 — Codex prompt-8 직접 구현 (마스터 데이터 주간 동기화)
+- **참석**: ML, ARCH, 창현님
+
+#### 완료 작업
+
+| 구분 | 작업 | 파일 |
+|------|------|------|
+| ML | `fetch_total_horse_info_list` 신규 추가 — 경마장별 마필종합 전체 수집 | `kra_api.py` |
+| ML | `collect_horse_total_info` 신규 추가 — 부마명·모색·영문마명 upsert | `data_service.py` |
+| ML | `_save_horse_total_items` 신규 추가 — 기존 말의 혈통 정보 보완 전용 | `data_service.py` |
+| ML | `RUNNABLE_JOBS`에 `collect_horse_total_info` 등록 | `admin.py` |
+| ML | `_dispatch_job`에 `collect_horse_total_info` 분기 추가 | `admin.py` |
+| ML | `sync_master_data` 함수 신규 추가 — 6종 job 순차 실행 | `nightly_pipeline.py` |
+| ML | `main()`에 월요일 조건부 마스터 동기화 호출 추가 | `nightly_pipeline.py` |
+
+#### 구현 상세
+
+**`fetch_total_horse_info_list` (kra_api.py)**
+- 기존 `fetch_total_horse_info`(단건 hr_no/hr_name 조회)와 별도로 신규 추가
+- `meet` 파라미터로 경마장 전체 목록 수집 / `_fetch_all_pages` 활용
+
+**`_save_horse_total_items` 설계 결정**
+- DB에 이미 있는 말의 혈통 정보만 보완 (새 말 추가 금지)
+- `father_name`, `color` 등 not-None 필드만 setattr 업데이트
+
+**`sync_master_data` 실행 순서**
+```
+collect_master_jockeys → collect_master_trainers → collect_master_horses
+→ collect_horse_details → collect_jockey_results → collect_horse_total_info
+```
+- KRA API 한도(2,800콜) 소진 위험으로 월요일 1회만 실행
+- SKIPPED 시 해당 경마장만 건너뜀, 전체 파이프라인 계속 진행
+
+#### Phase 4 Codex 프롬프트 전체 완료
+
+| # | 프롬프트 | 상태 |
+|---|---------|------|
+| 01 | Docker 복구 | ✅ |
+| 02 | BE Security + API | ✅ |
+| 03 | 수동 수집 API + 관리자 화면 | ✅ |
+| 04 | FE 로그인/회원가입/카카오 | ✅ |
+| 05 | FE 경주결과 + AI해설 | ✅ |
+| 06 | 운영 품질 정리 | ✅ |
+| 07 | nightly_pipeline 결과 재수집 | ✅ |
+| 08 | 마스터 데이터 주간 동기화 | ✅ 2026-06-01 직접 구현 |
+
+#### 커밋
+```
+feat: [prompt-8] 마스터 데이터 주간 동기화 + 부마명/모색 수집
+```
+
+---
+
 ### [날짜: 2026-05-28] 20차 세션 — 데이터 누락 진단 + 마스터 수집 실행 + Codex 프롬프트 #7~8
 
 - **참석**: ML, ARCH, FE, 창현님
@@ -709,32 +806,10 @@ ADD COLUMN moisture_level NUMERIC(4, 1)
   - [20차] FE 빌드 에러 수정 (person.ts MeetCode TS6133)
   - [20차] 5/23, 5/24 마체중·배당 수동 재수집 완료
   - [20차] 기수/조교사/말 마스터 데이터 일괄 수집 실행
+  - [prompt-1~7] Docker 복구 / BE API / FE 화면 / 운영품질 / 결과재수집 자동화 ✅
+  - [prompt-8] 마스터 데이터 주간 동기화 + 부마명/모색 수집 ✅ 2026-06-01
 
-📋 Codex 위임 대기 중 (프롬프트 작성 완료)
-  - phase4-07: nightly_pipeline Phase 0 추가 (결과 자동 재수집)
-  - phase4-08: 주간 마스터 데이터 동기화 + 부마명/모색 수집 신규 구현
-
-🔴 다음 (feat/phase4-docker)
-  1. ML Dockerfile: python=:3.11-slim → python:3.11-slim
-  2. docker-compose.yml ML DB URL: postgresql:// → postgresql+asyncpg://
-  3. BE Dockerfile 작성 + Compose 실제 앱 연결
-
-🔴 이후 (feat/phase4-be-api 잔여)
-  4. /racecourses/{meetCode} 컨트롤러 구현
-  5. /races/upcoming / /races/results / /dashboard/weekly 500 수정
-  6. 수동 수집 API 3종 신규 구현
-
-🟡 이후 (feat/phase4-fe-screens)
-  7. 로그인 / 회원가입 / 카카오 콜백
-  8. 경주 결과 / AI 해설
-  9. 경주마 목록·이력 / 경마장 목록·상세
-  10. 관리자 대시보드 + 수집 현황 (수동 수집 버튼 포함)
-
-🟡 이후 (feat/phase4-quality)
-  11. UI 영어 문구 한글화
-  12. 날씨 API Spring Boot 프록시 통일
-  13. .gitignore 로그 파일 추가
-  14. isDemo 플래그 / FastAPI charset
+🔴 다음 — 없음. Phase 4 Codex 프롬프트 8개 전체 완료 ✅
 ```
 
 ### 현재 브랜치 상태 (2026-05-28 기준)

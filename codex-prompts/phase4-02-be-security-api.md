@@ -126,10 +126,26 @@ jockeys와 동일한 패턴으로 구현합니다.
 
 ---
 
+## ⚠️ 프로젝트 필수 규칙
+
+### 커밋
+- 커밋 메시지: `feat: [prompt-2] BE API 403/500 수정`
+
+### BE 코딩 규칙
+- **예외 처리**: `ResponseStatusException` 사용 금지 — 반드시 `BusinessException(ErrorCode.XXX)` 사용
+  - 필요한 ErrorCode가 없으면 `global/exception/ErrorCode.java` enum에 추가 후 사용
+  - 예: `throw new BusinessException(ErrorCode.HORSE_NOT_FOUND);`
+- **공통 응답**: `ApiResponse.success(data)` 래퍼 필수 / 목록은 `PageResponse<T>` 사용
+- **URL prefix**: `/api/v1/` 전체 적용 — 누락 금지
+- **민감키 노출 금지**: `application-dev.yaml`에 실제 키·비밀번호 기본값 하드코딩 금지
+- **화면 표시 문구**: 응답 message 필드 한국어 필수
+- **주석**: 메서드마다 WHY를 설명하는 주석 한 줄 이상
+- **도메인 구조**: Controller → Service → Repository 패턴 유지
+
 ## 코드 작성 규칙
 1. **주석 필수**: 메서드/클래스마다 왜 이렇게 구현했는지 한 줄 이상 주석
 2. **공통 응답**: 반드시 기존 `ApiResponse<T>` 래퍼 사용
-3. **예외 처리**: 404는 `ResponseStatusException`, 500은 발생하지 않도록
+3. **예외 처리**: 404는 `BusinessException(ErrorCode.XXX)` 사용, 500은 발생하지 않도록
 4. **한글 에러 메시지**: 응답 message 필드는 한국어
 5. 새 파일 작성 시 기존 도메인 구조(Controller → Service → Repository) 패턴 동일하게 적용
 

@@ -100,6 +100,19 @@ async def main():
 
 ---
 
+## ⚠️ 프로젝트 필수 규칙
+
+### 커밋
+- 커밋 메시지: `feat: [prompt-7] nightly_pipeline 경주 결과 자동 재수집 추가`
+
+### ML/Python 규칙
+- **기존 패턴 준수**: 파일 내 기존 `async def` 함수 구조와 완전히 동일하게 작성
+- **에러 격리**: 예외 발생 시 해당 단계만 실패 처리 — 전체 파이프라인 중단 금지
+- **로그**: 기존 로그 패턴(`log_result` 또는 `logger`) 사용 — `print()` 직접 사용 금지
+- **KRA API 한도**: `status == "SKIPPED"` 응답 시 이후 수집만 중단, 파이프라인(Phase 1, 2)은 계속 진행
+- **주석**: 함수·중요 로직마다 WHY 설명 한 줄 이상
+- **충돌 주의**: #8 작업은 이 작업 완료·커밋 후 시작할 것 (동일 파일 `nightly_pipeline.py` 충돌 방지)
+
 ## 완료 기준
 
 1. `collect_missing_results` 함수가 nightly_pipeline.py에 추가됨

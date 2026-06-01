@@ -90,6 +90,21 @@ GET /api/v1/commentary/{raceId}/post  ← 결과 해설 (경주 후)
 
 ---
 
+## ⚠️ 프로젝트 필수 규칙
+
+### 커밋
+- 커밋 메시지: `feat: [prompt-5] 경주 결과 + AI 해설 화면 구현`
+
+### FE 규칙
+- **axios**: 기존 `axiosInstance` 사용 — 새 axios 인스턴스 생성 금지 (`src/services/axiosInstance.ts`)
+- **환경변수**: `localhost` URL 하드코딩 금지 — axiosInstance가 자동 처리
+- **Toast**: 기존 `Toast` 컴포넌트 재사용 (`src/components/Toast.tsx`)
+- **화면 문구**: 화면에 표시되는 모든 텍스트 한글 전용 (코드 식별자 제외)
+- **FE → Spring Boot만**: FastAPI(`localhost:8000`) 직접 호출 금지
+- **data_status**: `DataStatusBadge` 사용 시 ENUM은 `READY / UPDATING / COLLECTED / JOCKEY_CHANGED`
+- **라우팅**: `lazy()` + `Suspense` 패턴 유지
+- **주석**: 각 섹션·함수의 역할과 WHY 한 줄 이상
+
 ## App.tsx 라우트 등록 업데이트
 
 ```tsx

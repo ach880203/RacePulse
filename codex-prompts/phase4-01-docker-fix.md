@@ -141,6 +141,18 @@ curl http://localhost:8000/health
 # → {"status":"ok",...}
 ```
 
+## ⚠️ 프로젝트 필수 규칙
+
+### 커밋
+- 커밋 메시지: `feat: [prompt-1] Docker 실행 재현성 복구`
+- 변경 대상 파일 외 수정 금지 (Dockerfile, docker-compose.yml 외)
+
+### Docker 규칙
+- `.env` 파일의 실제 값은 절대 수정 금지
+- `postgres`, `redis` 서비스 정의 수정 금지
+- 기존 네트워크·볼륨 이름 변경 금지
+- 주석: 각 스테이지·환경변수에 WHY 설명 한 줄 이상
+
 ## 주의사항
 - `.env` 파일의 실제 값은 건드리지 마세요
 - DB 마이그레이션은 Spring Boot 시작 시 Flyway가 자동 실행합니다

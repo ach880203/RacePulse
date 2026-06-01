@@ -100,6 +100,18 @@ async def add_charset_header(request, call_next):
 
 ---
 
+## ⚠️ 프로젝트 필수 규칙
+
+### 커밋
+- 커밋 메시지: `feat: [prompt-6] 운영 품질 정리 (한글화/날씨프록시/gitignore/charset)`
+
+### 규칙
+- **최소 변경 원칙**: 기존 동작을 바꾸지 않는 최소한의 수정만
+- **화면 문구 기준**: 브랜드명 "RacePulse" 한글 변환 금지. JSX에서 사용자에게 보이는 텍스트(label, heading, placeholder, button text)만 변경. 변수명·클래스명·enum 절대 변경 금지
+- **FE → Spring Boot만**: 날씨 API URL이 `localhost:8000`(FastAPI)으로 돼 있으면 Spring Boot 경유로 반드시 교체 — axiosInstance + `VITE_API_BASE_URL` 사용
+- **환경변수**: localhost 하드코딩 금지 — axiosInstance의 baseURL 설정 활용
+- **주석**: 각 변경에 이유 설명 한 줄 이상
+
 ## 코드 작성 규칙
 - 모든 변경에 주석으로 이유 설명
 - 기존 동작을 바꾸지 않는 최소한의 변경만
