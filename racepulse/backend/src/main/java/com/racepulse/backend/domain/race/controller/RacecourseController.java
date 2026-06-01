@@ -4,10 +4,12 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.racepulse.backend.domain.race.dto.RacecourseResponse;
+import com.racepulse.backend.domain.race.entity.MeetCode;
 import com.racepulse.backend.domain.race.service.RacecourseService;
 import com.racepulse.backend.global.response.ApiResponse;
 
@@ -34,6 +36,16 @@ public class RacecourseController {
     public ResponseEntity<ApiResponse<List<RacecourseResponse>>> getRacecourses() {
         return ResponseEntity.ok(
                 ApiResponse.success(racecourseService.getRacecourses(), "조회 성공")
+        );
+    }
+
+    @Operation(summary = "경마장 단건 조회", description = "경마장 코드(SC/BU/JJ)로 경마장 상세 정보를 조회합니다.")
+    @GetMapping("/{meetCode}")
+    public ResponseEntity<ApiResponse<RacecourseResponse>> getRacecourse(
+            @PathVariable MeetCode meetCode
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.success(racecourseService.getRacecourse(meetCode), "조회 성공")
         );
     }
 }

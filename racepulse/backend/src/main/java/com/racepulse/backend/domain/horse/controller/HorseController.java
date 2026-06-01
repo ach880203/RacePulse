@@ -5,6 +5,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -49,5 +50,13 @@ public class HorseController {
         );
 
         return ResponseEntity.ok(ApiResponse.success(response, "조회 성공"));
+    }
+
+    @Operation(summary = "경주마 단건 조회", description = "경주마 ID로 상세 정보를 조회합니다.")
+    @GetMapping("/{horseId}")
+    public ResponseEntity<ApiResponse<HorseResponse>> getHorseById(
+            @PathVariable Long horseId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(horseService.getHorseById(horseId), "조회 성공"));
     }
 }

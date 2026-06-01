@@ -1,12 +1,10 @@
-// useState = 필터 값처럼 사용자가 조작하는 화면 상태를 저장하는 도구입니다.
-import { useState } from 'react'
-
 // List = 화면에 보이는 행만 실제 DOM으로 그려 긴 목록 렌더링 비용을 줄이는 가상화 컴포넌트입니다.
 import { List } from 'react-window'
 import type { RowComponentProps } from 'react-window'
 
 // Link = 경주 카드를 눌렀을 때 상세 경로로 이동시키는 라우터 링크입니다.
-import { Link } from 'react-router-dom'
+// useSearchParams = 필터 상태를 URL 쿼리 파라미터로 관리해 뒤로가기 시 상태를 복원합니다.
+import { Link, useSearchParams } from 'react-router-dom'
 
 // Layout = 페이지 공통 헤더/푸터를 감싸는 레이아웃 컴포넌트입니다.
 import Layout from '../components/layout/Layout'
@@ -138,13 +136,14 @@ function VirtualRaceRow({ index, style, races }: RowComponentProps<VirtualRaceRo
 // RaceListPage 컴포넌트
 // =============================================================================
 function RaceListPage() {
-  // 필터 상태 — 이 값이 바뀌면 React Query가 자동으로 API를 다시 호출합니다.
-  const [selectedMeetCode, setSelectedMeetCode] = useState<MeetFilter>('ALL')
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10))
-  const [currentPage, setCurrentPage] = useState(0) // Spring Boot는 0 기반 페이지
+  // URL 쿼리 파라미터로 필터 상태를 관리합니다.
+  // 뒤로가기 시 브라우저가 URL을 복원하므로 필터 상태가 그대로 유지됩니다.
+  const [searchParams, setSearchParams] = useSearchParams()
 
-  // useRaces = 필터 파라미터를 넘기면 그에 맞는 데이터를 가져옵니다.
-  // 파라미터가 바뀔 때마다 자동으로 재요청합니다.
+  const selectedMeetCode = (searchParams.get('meetCode') ?? 'ALL') as MeetFilter
+  const selectedDate     = searchParams.get('date') ?? new Date().toISOString().slice(0, 10)
+  const currentPage      = Number(searchParams.get('page') ?? '0')
+
   const { data, isLoading, isError, isFetching } = useRaces({
     meetCode: selectedMeetCode,
     rcDate: selectedDate,
@@ -152,15 +151,20 @@ function RaceListPage() {
     size: PAGE_SIZE,
   })
 
-  // 필터가 바뀌면 첫 페이지로 돌아갑니다.
   function handleMeetCodeChange(value: MeetFilter) {
-    setSelectedMeetCode(value)
-    setCurrentPage(0)
+    setSearchParams((prev) => {
+      prev.set('meetCode', value)
+      prev.set('page', '0')
+      return prev
+    })
   }
 
   function handleDateChange(value: string) {
-    setSelectedDate(value)
-    setCurrentPage(0)
+    setSearchParams((prev) => {
+      prev.set('date', value)
+      prev.set('page', '0')
+      return prev
+    })
   }
 
   const races = data?.content ?? []
@@ -172,7 +176,7 @@ function RaceListPage() {
       <div className="flex flex-col gap-8">
         {/* 페이지 헤더 */}
         <section className="space-y-3">
-          <p className="text-sm tracking-[0.2em] text-brand-gold-400">RACE BOARD</p>
+          <p className="text-sm tracking-[0.2em] text-brand-gold-400">경주 목록</p>
           <h1 className="font-heading text-4xl text-white">경주 목록</h1>
           <p className="max-w-2xl text-sm leading-7 text-white/65">
             날짜와 경마장으로 경주를 필터링합니다.
@@ -286,7 +290,7 @@ function RaceListPage() {
             <div className="flex items-center justify-center gap-2 pt-4">
               <button
                 type="button"
-                onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+                onClick={() => setSearchParams((prev) => { prev.set('page', String(Math.max(0, currentPage - 1))); return prev })}
                 disabled={currentPage === 0}
                 className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
               >
@@ -302,7 +306,7 @@ function RaceListPage() {
                   <button
                     key={pageNum}
                     type="button"
-                    onClick={() => setCurrentPage(pageNum)}
+                    onClick={() => setSearchParams((prev) => { prev.set('page', String(pageNum)); return prev })}
                     className={[
                       'h-9 w-9 rounded-full text-sm font-medium transition-colors',
                       currentPage === pageNum
@@ -317,7 +321,7 @@ function RaceListPage() {
 
               <button
                 type="button"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
+                onClick={() => setSearchParams((prev) => { prev.set('page', String(Math.min(totalPages - 1, currentPage + 1))); return prev })}
                 disabled={currentPage >= totalPages - 1}
                 className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
               >

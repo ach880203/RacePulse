@@ -27,8 +27,8 @@ const MEET_LABELS: Record<string, string> = {
 
 // TODO: [Phase 2] 실제 정확도 데이터 연동 후 교체
 const accuracyMetrics = [
-  { label: 'Top-1 적중률', value: 42 },
-  { label: 'Top-3 적중률', value: 68 },
+  { label: '1순위 적중률', value: 42 },
+  { label: '3순위권 적중률', value: 68 },
 ]
 
 // =============================================================================
@@ -113,7 +113,7 @@ function HomePage() {
           <div className="relative grid gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(18rem,0.8fr)] lg:items-center">
             <div className="flex flex-col gap-5">
               <span className="w-fit rounded-full border border-brand-gold-400/30 bg-brand-gold-400/10 px-4 py-2 text-xs font-semibold tracking-[0.22em] text-brand-gold-400">
-                AI RACE INTELLIGENCE
+                AI 경주 분석
               </span>
               <div className="space-y-3">
                 <h1 className="font-heading text-4xl leading-tight text-white sm:text-5xl">
@@ -165,7 +165,7 @@ function HomePage() {
         <section className="space-y-5">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <p className="text-sm tracking-[0.2em] text-brand-gold-400">TODAY RACES</p>
+              <p className="text-sm tracking-[0.2em] text-brand-gold-400">오늘의 경주</p>
               <h2 className="mt-2 font-heading text-3xl text-white">오늘의 경주</h2>
             </div>
             <Link
@@ -214,7 +214,7 @@ function HomePage() {
             -------------------------------------------------------------------- */}
         <section className="grid gap-6 rounded-[2rem] border border-white/10 bg-brand-navy-900/55 p-6 lg:grid-cols-[0.8fr_1.2fr] lg:p-8">
           <div className="space-y-3">
-            <p className="text-sm tracking-[0.2em] text-brand-gold-400">PREDICTION SCORE</p>
+            <p className="text-sm tracking-[0.2em] text-brand-gold-400">예측 정확도</p>
             <h2 className="font-heading text-3xl text-white">누적 예측 정확도</h2>
             <p className="max-w-xl text-sm leading-7 text-white/65">
               모델 고도화 전 단계라 현재 수치는 데모용 지표입니다.

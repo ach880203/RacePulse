@@ -30,7 +30,11 @@ const RaceListPage = lazy(() => import('./pages/RaceListPage'))
 const RaceDetailPage = lazy(() => import('./pages/race/RaceDetailPage'))
 const RaceEntriesPage = lazy(() => import('./pages/race/RaceEntriesPage'))
 const RacePredictionPage = lazy(() => import('./pages/race/RacePredictionPage'))
+const RaceResultPage = lazy(() => import('./pages/race/RaceResultPage'))
+const CommentaryPage = lazy(() => import('./pages/race/CommentaryPage'))
+const HorseListPage = lazy(() => import('./pages/horse/HorseListPage'))
 const HorseDetailPage = lazy(() => import('./pages/horse/HorseDetailPage'))
+const JockeyListPage = lazy(() => import('./pages/jockey/JockeyListPage'))
 const JockeyDetailPage = lazy(() => import('./pages/jockey/JockeyDetailPage'))
 const TrainerDetailPage = lazy(() => import('./pages/trainer/TrainerDetailPage'))
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
@@ -40,6 +44,10 @@ const SearchPage = lazy(() => import('./pages/SearchPage'))
 const ProfilePage = lazy(() => import('./pages/user/ProfilePage'))
 const FavoritesPage = lazy(() => import('./pages/user/FavoritesPage'))
 const SettingsPage = lazy(() => import('./pages/user/SettingsPage'))
+const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
+const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
+const KakaoCallbackPage = lazy(() => import('./pages/auth/KakaoCallbackPage'))
+const CollectionStatusPage = lazy(() => import('./pages/admin/CollectionStatusPage'))
 const UnauthorizedPage = lazy(() => import('./pages/error/UnauthorizedPage'))
 const ServerErrorPage = lazy(() => import('./pages/error/ServerErrorPage'))
 const NotFoundPage = lazy(() => import('./pages/error/NotFoundPage'))
@@ -96,16 +104,17 @@ function App() {
           <Route path="/races"                          element={<RaceListPage />} />
           <Route path="/races/:raceId"                  element={<RaceDetailPage />} />
           <Route path="/races/:raceId/entries"          element={<RaceEntriesPage />} />
-          <Route path="/races/:raceId/result"           element={<Placeholder name="경주 결과" />} />
+          <Route path="/races/:raceId/result"           element={<RaceResultPage />} />
           <Route path="/races/:raceId/prediction"       element={<RacePredictionPage />} />
-          <Route path="/races/:raceId/commentary"       element={<Placeholder name="AI 해설" />} />
+          <Route path="/races/:raceId/commentary"       element={<CommentaryPage />} />
 
-          {/* 경주마 관련 — 11번에서 실제 페이지로 교체 */}
-          <Route path="/horses"                         element={<Placeholder name="경주마 목록" />} />
+          {/* 경주마 관련 */}
+          <Route path="/horses"                         element={<HorseListPage />} />
           <Route path="/horses/:horseId"                element={<HorseDetailPage />} />
           <Route path="/horses/:horseId/history"        element={<Placeholder name="경주마 성적 이력" />} />
 
-          {/* 기수 / 조교사 — 11번에서 실제 페이지로 교체 */}
+          {/* 기수 / 조교사 */}
+          <Route path="/jockeys"                        element={<JockeyListPage />} />
           <Route path="/jockeys/:jockeyId"              element={<JockeyDetailPage />} />
           <Route path="/trainers/:trainerId"            element={<TrainerDetailPage />} />
 
@@ -120,11 +129,11 @@ function App() {
           <Route path="/demo"                           element={<ComponentDemoPage />} />
 
           {/* ----------------------------------------------------------------
-              인증 페이지 — TODO: [Phase 2] 카카오 로그인 연동
+              인증 페이지 — 실제 로그인/회원가입/카카오 콜백 화면
               ---------------------------------------------------------------- */}
-          <Route path="/login"                          element={<Placeholder name="로그인" />} />
-          <Route path="/register"                       element={<Placeholder name="회원가입" />} />
-          <Route path="/auth/kakao/callback"            element={<Placeholder name="카카오 OAuth 콜백" />} />
+          <Route path="/login"                          element={<LoginPage />} />
+          <Route path="/register"                       element={<RegisterPage />} />
+          <Route path="/auth/kakao/callback"            element={<KakaoCallbackPage />} />
 
           {/* 로그인 필요 페이지 */}
           <Route element={<PrivateRoute />}>
@@ -135,7 +144,7 @@ function App() {
 
           {/* 관리자 페이지 */}
           <Route path="/admin"                          element={<Placeholder name="관리자 대시보드" />} />
-          <Route path="/admin/collection"               element={<Placeholder name="수집 현황" />} />
+          <Route path="/admin/collection"               element={<CollectionStatusPage />} />
           {/* 에러 페이지 */}
           <Route path="/unauthorized"                   element={<UnauthorizedPage/>} />
           <Route path="/forbidden"                      element={<UnauthorizedPage variant="forbidden" />} />

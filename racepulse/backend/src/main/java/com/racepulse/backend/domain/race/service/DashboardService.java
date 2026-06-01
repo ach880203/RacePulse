@@ -11,11 +11,17 @@ package com.racepulse.backend.domain.race.service;
 // =============================================================================
 
 import com.racepulse.backend.domain.race.dto.AccuracyStatsDto;
+import com.racepulse.backend.domain.race.dto.RaceResponse;
+import com.racepulse.backend.domain.race.dto.WeeklyDashboardResponse;
+import com.racepulse.backend.domain.race.entity.RaceStatus;
+import com.racepulse.backend.domain.race.repository.RaceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -30,6 +36,7 @@ public class DashboardService {
     // JdbcTemplate = SQL 쿼리를 직접 실행하는 Spring 도구입니다.
     // JPA ORM보다 네이티브 SQL을 쓸 때 적합합니다.
     private final JdbcTemplate jdbcTemplate;
+    private final RaceRepository raceRepository;
 
     /**
      * 전체 예측 정확도 통계를 계산합니다.
@@ -54,6 +61,106 @@ public class DashboardService {
             // predictions 테이블이 아직 없으면(ML 서버 미실행) 데모 반환
             log.warn("[대시보드] predictions 테이블 조회 실패: {}. 데모 데이터 반환.", e.getMessage());
             return buildDemoStats();
+        }
+    }
+
+    /**
+     * 이번 주 경주와 예측 결과 요약을 조회합니다.
+     *
+     * 대시보드는 운영 데이터가 아직 비어 있거나 ML 테이블이 생성 전이어도 첫 화면이 떠야 하므로,
+     * 예측 통계 조회 실패는 500으로 올리지 않고 0 값으로 대체합니다.
+     */
+    public WeeklyDashboardResponse getWeeklyDashboard() {
+        LocalDate today = LocalDate.now();
+        LocalDate weekStart = today.with(DayOfWeek.MONDAY);
+        LocalDate weekEnd = today.with(DayOfWeek.SUNDAY);
+
+        List<RaceResponse> upcomingRaces = raceRepository
+                .findByRcDateGreaterThanEqualAndStatusOrderByRcDateAscStartTimeAscRaceNoAsc(
+                        today,
+                        RaceStatus.SCHEDULED,
+                        PageRequest.of(0, 20)
+                )
+                .stream()
+                .map(RaceResponse::from)
+                .toList();
+
+        List<RaceResponse> recentResults = raceRepository
+                .findByStatusOrderByRcDateDescRaceNoDesc(RaceStatus.COMPLETED, PageRequest.of(0, 20))
+                .stream()
+                .map(RaceResponse::from)
+                .toList();
+
+        return WeeklyDashboardResponse.builder()
+                .weekStart(weekStart)
+                .weekEnd(weekEnd)
+                .scheduledRaceCount(countWeeklyRaces(RaceStatus.SCHEDULED, weekStart, weekEnd))
+                .completedRaceCount(countWeeklyRaces(RaceStatus.COMPLETED, weekStart, weekEnd))
+                .predictionCount(countWeeklyPredictions(weekStart, weekEnd))
+                .top1Accuracy(queryWeeklyAccuracy(weekStart, weekEnd, true))
+                .top3Accuracy(queryWeeklyAccuracy(weekStart, weekEnd, false))
+                .upcomingRaces(upcomingRaces)
+                .recentResults(recentResults)
+                .build();
+    }
+
+    private long countWeeklyRaces(RaceStatus status, LocalDate weekStart, LocalDate weekEnd) {
+        Long count = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM races
+                WHERE status = ?::race_status
+                  AND rc_date BETWEEN ? AND ?
+                """,
+                Long.class,
+                status.name(),
+                weekStart,
+                weekEnd
+        );
+        return count != null ? count : 0L;
+    }
+
+    private long countWeeklyPredictions(LocalDate weekStart, LocalDate weekEnd) {
+        try {
+            Long count = jdbcTemplate.queryForObject(
+                    """
+                    SELECT COUNT(*)
+                    FROM predictions
+                    WHERE predicted_at >= ?
+                      AND predicted_at < ?
+                    """,
+                    Long.class,
+                    weekStart,
+                    weekEnd.plusDays(1)
+            );
+            return count != null ? count : 0L;
+        } catch (Exception e) {
+            log.debug("[대시보드] 주간 예측 건수 조회 실패: {}", e.getMessage());
+            return 0L;
+        }
+    }
+
+    private double queryWeeklyAccuracy(LocalDate weekStart, LocalDate weekEnd, boolean top1Only) {
+        try {
+            String rankCondition = top1Only ? "r.rank = 1" : "r.rank <= 3";
+            Double accuracy = jdbcTemplate.queryForObject(
+                    """
+                    SELECT ROUND(100.0 * SUM(CASE WHEN p.predicted_rank = 1 AND %s THEN 1 ELSE 0 END)
+                                 / NULLIF(COUNT(*), 0), 1)
+                    FROM predictions p
+                    JOIN race_results r ON p.race_entry_id = r.race_entry_id
+                    JOIN races ra ON r.race_id = ra.id
+                    WHERE p.predicted_rank = 1
+                      AND ra.rc_date BETWEEN ? AND ?
+                    """.formatted(rankCondition),
+                    Double.class,
+                    weekStart,
+                    weekEnd
+            );
+            return accuracy != null ? accuracy : 0.0;
+        } catch (Exception e) {
+            log.debug("[대시보드] 주간 정확도 조회 실패: {}", e.getMessage());
+            return 0.0;
         }
     }
 

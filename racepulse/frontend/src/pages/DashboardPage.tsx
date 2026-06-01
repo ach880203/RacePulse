@@ -36,8 +36,8 @@ function DashboardPage() {
   const meetData = stats
     ? Object.entries(stats.byMeetCode).map(([code, acc]) => ({
         name: MEET_LABELS[code] ?? code,
-        'Top-1': acc.top1,
-        'Top-3': acc.top3,
+        '1순위': acc.top1,
+        '3순위권': acc.top3,
       }))
     : []
 
@@ -113,13 +113,13 @@ function DashboardPage() {
       {
         type: 'bar',
         name: '1순위 적중률',
-        data: meetData.map((item) => item['Top-1']),
+        data: meetData.map((item) => item['1순위']),
         itemStyle: { color: 'var(--color-brand-gold-400)', borderRadius: [4, 4, 0, 0] },
       },
       {
         type: 'bar',
         name: '3순위 적중률',
-        data: meetData.map((item) => item['Top-3']),
+        data: meetData.map((item) => item['3순위권']),
         itemStyle: { color: 'rgba(255,255,255,0.25)', borderRadius: [4, 4, 0, 0] },
       },
     ],
@@ -130,10 +130,10 @@ function DashboardPage() {
       <div className="flex flex-col gap-10">
         {/* 페이지 헤더 */}
         <section className="space-y-2">
-          <p className="text-sm tracking-[0.2em] text-brand-gold-400">PREDICTION SCORE</p>
+          <p className="text-sm tracking-[0.2em] text-brand-gold-400">예측 정확도</p>
           <h1 className="font-heading text-4xl text-white">예측 정확도 대시보드</h1>
           <p className="text-sm text-white/50">
-            ML 모델의 누적 예측 성능을 실시간으로 확인합니다.
+            머신러닝 모델의 누적 예측 성능을 실시간으로 확인합니다.
           </p>
         </section>
 
@@ -155,9 +155,9 @@ function DashboardPage() {
           ) : (
             <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
               {/* 원형 게이지 4개 */}
-              <CircularGauge value={stats.top1Accuracy}    label="Top-1 적중률"    />
-              <CircularGauge value={stats.top3Accuracy}    label="Top-3 적중률"    />
-              <CircularGauge value={stats.last30DaysTop1}  label="최근 30일 Top-1" />
+              <CircularGauge value={stats.top1Accuracy}    label="1순위 적중률"    />
+              <CircularGauge value={stats.top3Accuracy}    label="3순위권 적중률"    />
+              <CircularGauge value={stats.last30DaysTop1}  label="최근 30일 1순위" />
               {/* 전체 예측 수는 숫자 카드로 표시 */}
               <div className="flex flex-col items-center gap-3">
                 <div className="flex h-[140px] w-[140px] flex-col items-center justify-center rounded-full border-4 border-white/10">
@@ -215,6 +215,11 @@ function DashboardPage() {
             <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/40">
               데모 데이터
             </span>
+          </div>
+          <div className="rounded-2xl border border-brand-gold-400/20 bg-brand-gold-400/5 px-4 py-3 text-sm text-white/60">
+            {/* 실제 예측 API 연동 전까지 샘플 데이터로 표시합니다. */}
+            현재 표시되는 예측 결과는 시스템 검증용 샘플 데이터입니다.
+            실제 경주 예측은 경주 상세 페이지에서 확인하세요.
           </div>
           <div className="flex flex-col gap-2">
             {DEMO_PREDICTIONS.map((pred, i) => (

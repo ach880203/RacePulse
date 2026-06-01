@@ -11,21 +11,10 @@
 
 // axiosInstance = 기본 URL과 인터셉터가 설정된 공통 HTTP 클라이언트입니다.
 import axiosInstance from './axiosInstance'
-// axios = ML 서버(8000번 포트) 직접 호출용으로 별도 인스턴스를 만들 때 사용합니다.
-import axios from 'axios'
 // 타입 정의 (TypeScript가 데이터 모양을 검증할 수 있게 해줍니다)
 import type { ApiResponse, PageResponse, Race, RaceListParams } from '../types/race'
 import type { RaceEntry, RaceResult } from '../types/entry'
 import type { WeatherForecast } from '../types/weather'
-
-// ML 서버(FastAPI)에 직접 요청하는 별도 클라이언트입니다.
-// 코드 리뷰 #4: localhost 하드코딩 제거 — Vite 환경변수로 분리합니다.
-// .env.development: VITE_ML_SERVER_URL=http://localhost:8000
-// .env.production:  VITE_ML_SERVER_URL=https://ml.racepulse.com
-const mlAxios = axios.create({
-  baseURL: import.meta.env.VITE_ML_SERVER_URL ?? 'http://localhost:8000',
-  timeout: 10_000,
-})
 
 /**
  * 경주 목록을 페이지 단위로 조회합니다.
@@ -91,15 +80,15 @@ export async function fetchRaceResult(raceId: number): Promise<RaceResult[]> {
 }
 
 /**
- * 특정 경마장·날짜의 날씨 예보를 ML 서버에서 조회합니다.
- * FastAPI ML 서버: GET /weather/{meetCode}/{date}
+ * 특정 경마장·날짜의 날씨 예보를 Spring Boot 프록시에서 조회합니다.
+ * 프론트가 FastAPI를 직접 호출하지 않아야 서버 주소와 CORS 정책을 한 곳에서 관리할 수 있습니다.
  */
 export async function fetchWeather(
   meetCode: string,
   date: string,
 ): Promise<WeatherForecast | null> {
   try {
-    const response = await mlAxios.get<{ success: boolean; data: WeatherForecast }>(
+    const response = await axiosInstance.get<ApiResponse<WeatherForecast | null>>(
       `/weather/${meetCode}/${date}`,
     )
     return response.data.data

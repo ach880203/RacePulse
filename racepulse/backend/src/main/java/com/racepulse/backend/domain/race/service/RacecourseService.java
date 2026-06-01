@@ -7,7 +7,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.racepulse.backend.domain.race.dto.RacecourseResponse;
+import com.racepulse.backend.domain.race.entity.MeetCode;
 import com.racepulse.backend.domain.race.repository.RacecourseRepository;
+import com.racepulse.backend.global.exception.BusinessException;
+import com.racepulse.backend.global.exception.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
 
@@ -32,5 +35,12 @@ public class RacecourseService {
                 .stream()
                 .map(RacecourseResponse::from)
                 .toList();
+    }
+
+    // meetCode는 SC/BU/JJ처럼 사용자가 URL에서 직접 넣는 값이라, 없는 값은 500이 아니라 404로 명확히 돌려줍니다.
+    public RacecourseResponse getRacecourse(MeetCode meetCode) {
+        return racecourseRepository.findByMeetCode(meetCode)
+                .map(RacecourseResponse::from)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RACECOURSE_NOT_FOUND));
     }
 }

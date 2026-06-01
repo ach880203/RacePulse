@@ -608,6 +608,66 @@ docs: v3.0 재학습 결과 기록 (XGBoost Top-3 98.85% / LightGBM Top-3 99.05%
 
 ---
 
+---
+
+### [날짜: 2026-05-27] 17차 작업 세션 — 점검 + 계획 재편성
+- **참석**: 창현님
+
+#### Git 정리 완료
+
+| 작업 | 결과 |
+|------|------|
+| fix/ui-issues 미커밋 4개 파일 커밋 | index.html preload 제거 / ECharts optimizeDeps / bulk_collect 타임아웃 / nightly_pipeline 경로 수정 |
+| PR #13 머지 (fix/ui-issues → develop) | ✅ MERGED |
+| develop → main 머지 (버그 수정 전체 반영) | ✅ 완료 |
+| v3.0.1 태그 생성 & push | ✅ (v3.0.0은 기존 Phase 3 시점 / v3.0.1은 버그픽스 포함 최종) |
+
+#### 자동화 복구 완료
+
+| 항목 | 조치 | 결과 |
+|------|------|------|
+| FastAPI ML 서버 (8000) | venv 활성화 후 수동 실행 | ✅ 실행 중 |
+| Task Scheduler SYSTEM 계정 | fix_scheduler_admin.ps1 관리자 실행 | ✅ 로그아웃 시에도 새벽 03:00/05:00 자동 실행 가능 |
+
+> ⚠️ PC 재부팅 시 FastAPI, Spring Boot 수동 재실행 필요 (AWS 배포 전까지는 이 방식 유지)
+
+#### PROJECT_ISSUE_AUDIT_2026-05-27.md 기반 전수 점검 결과
+
+점검 파일: `racepulse/PROJECT_ISSUE_AUDIT_2026-05-27.md`
+
+**치명/높음 이슈 요약**
+
+| # | 분류 | 이슈 | 영향 |
+|---|------|------|------|
+| 1 | Docker | ML Dockerfile 이미지명 오타 (`python=:3.11-slim`) | `docker compose up` 불가 |
+| 2 | Docker | BE Compose가 임시 이미지 — 실제 앱 없음 | Compose 재현성 없음 |
+| 3 | Docker | ML Compose DB URL `asyncpg` 미적용 | ML 서버 Compose 기동 실패 가능 |
+| 4 | BE | `/horses/{id}`, `/jockeys/{id}`, `/trainers/{id}`, `/racecourses/{meetCode}` 구현 없음 | 상세 화면 전부 500/403 |
+| 5 | BE | `/races/upcoming`, `/races/results`, `/dashboard/weekly` 500 | 핵심 화면 오류 |
+| 6 | BE | `/home` 403 — SecurityConfig 공개 경로 누락 | 홈 화면 데이터 없음 |
+| 7 | FE | Placeholder 화면 11개 (로그인/결과/해설/경주마/경마장/관리자 등) | 핵심 사용자 경로 미완성 |
+| 8 | FE | 날씨 API를 ML 서버 직접 호출 (Spring Boot 우회) | 아키텍처 규칙 위반 |
+| 9 | FE | UI 영어 문구 (`AI RACE INTELLIGENCE`, `TODAY RACES` 등) | 전역 규칙 위반 |
+| 10 | ML | FastAPI 스케줄러 상태 API가 실제 인스턴스 미참조 | 관리자 화면 오진단 |
+| 11 | CI | GitHub Actions 위치 중복 (루트 + `racepulse/.github`) | 하위 워크플로우 미실행 |
+
+#### 최종 Phase 계획 확정 (창현님 결정)
+
+| Phase | 목표 |
+|-------|------|
+| **Phase 4** | Docker 복구 + API 구현 + Placeholder 화면 완성 + 운영 품질 정리 |
+| **Phase 5** | 미니게임 (다마고치 + 퀴즈 + 토너먼트 + 상점) |
+| **Phase 6** | AWS 배포 + CI/CD + 부하테스트 (Terraform 활용) |
+| **Phase 7** | README + 포트폴리오 문서화 (최종 마무리) |
+
+> ✅ 창현님 결정사항:
+> - AWS 배포는 Phase 6으로 독립 (Terraform 사용)
+> - 미니게임(Phase 5)을 배포보다 먼저 완성
+> - README/포트폴리오는 배포 완료 후 Phase 7에서 작성
+> - 회의에서 팀원은 의견 제시만 / 최종 결정은 항상 창현님
+
+---
+
 ## 📌 새 세션 인수인계 체크리스트
 
 새 채팅을 열 때 반드시 이 파일(`horse_racing_team_v3.md`)을 읽고 시작할 것.
@@ -637,20 +697,27 @@ docs: v3.0 재학습 결과 기록 (XGBoost Top-3 98.85% / LightGBM Top-3 99.05%
 **병렬 실행:** prompt-29(DB)와 prompt-30~32(ML)는 동시 시작 가능
 **V13 완료 후:** prompt-33~37(BE) 착수 / FE는 BE와 병행 가능
 
-### 당장 해야 할 것 (우선순위 순)
-1. ~~**v3.0 재학습**~~ ✅ 2026-05-15 완료 (XGBoost Top-3 98.85% / LightGBM Top-3 99.05%)
-2. ~~**prompt-29~44**~~ ✅ 2026-05-22 완료 (Phase 3 전체 16개 프롬프트 완료)
-3. **Phase 4 시작**: AWS 배포 / 부하 테스트 / README / 포트폴리오 문서화
-4. **Phase 5 예정**: 다마고치 미니게임 / 퀴즈 / 토너먼트 / 상점
+### 당장 해야 할 것 (우선순위 순) — 2026-05-27 기준
 
-### 현재 브랜치 상태 (2026-05-22 기준)
-- `main` ← v2.0.0 태그 / Phase 2 완료
-- `develop` ← Phase 3 PR #9 머지 대기 중
-- `feat/phase3-fe-freemium` ← **Phase 3 전체 커밋** / PR #9 → develop
-- **v3.0.0 태그**: PR #9 develop 머지 → main 머지 후 예정
+**Phase 4 작업 순서**
+1. 🔴 Docker 복구 3종 (Dockerfile 오타 / BE Compose 실제 앱 / ML DB URL asyncpg)
+2. 🔴 BE API 구현 (`/horses/{id}` / `/jockeys/{id}` / `/trainers/{id}` / `/racecourses/{meetCode}` / `/races/upcoming` / `/dashboard/weekly` / `/home` 403)
+3. 🟡 FE Placeholder 화면 구현 (로그인·회원가입·경주결과·AI해설·경주마·경마장·관리자)
+4. 🟡 운영 품질 정리 (UI 한글화 / 날씨 API 프록시 통일 / 스케줄러 상태 API / gitignore 로그 / CI 워크플로우 정리)
+
+**Phase 5 이후**
+- Phase 5: 미니게임 (다마고치 + 퀴즈 + 토너먼트 + 상점)
+- Phase 6: AWS 배포 + CI/CD + 부하테스트 (Terraform)
+- Phase 7: README + 포트폴리오 문서화
+
+### 현재 브랜치 상태 (2026-05-27 기준)
+- `main` ← v3.0.1 태그 (버그픽스 포함 최종) / v3.0.0 (Phase 3 완료 시점)
+- `develop` ← main과 동기화 완료
+- `fix/ui-issues` ← PR #13 머지 완료
 
 ### 실행 중인 자동화
-- Task Scheduler 03:00: 데이터 수집 (`RacePulse_BulkCollect`)
-- Task Scheduler 05:00: ML 파이프라인 (`RacePulse_NightlyPipeline`)
-- APScheduler: 변경감지 토/일/월 09:00~17:00 30분마다 (`change_detection_sat/sun/mon`)
+- Task Scheduler 03:00: 데이터 수집 (`RacePulse_BulkCollect`) — SYSTEM 계정 ✅
+- Task Scheduler 05:00: ML 파이프라인 (`RacePulse_NightlyPipeline`) — SYSTEM 계정 ✅
+- APScheduler: 변경감지 토/일/월 09:00~17:00 30분마다
 - 로그: `racepulse/ml-server/scripts/nightly_log.txt`
+- ⚠️ FastAPI ML 서버 / Spring Boot — PC 재부팅 시 수동 재실행 필요

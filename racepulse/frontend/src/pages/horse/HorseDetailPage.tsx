@@ -49,7 +49,7 @@ function HorseDetailPage() {
   // 실제 경주 이력이 없으므로 레이팅 값으로 트렌드를 표현합니다.
   // TODO: [Phase 2] 실제 경주 이력 API 연동 후 교체
   const sparkData = [horse.rating1, horse.rating2, horse.rating3, horse.rating4]
-    .filter((r): r is number => r != null)
+    .filter((r): r is number => r != null && r > 0)
     .map((r) => ({ order: Math.round(r) }))
 
   return (
@@ -119,7 +119,7 @@ function HorseDetailPage() {
         </section>
 
         {/* 레이팅 정보 */}
-        {(horse.rating1 ?? horse.rating2 ?? horse.rating3 ?? horse.rating4) && (
+        {[horse.rating1, horse.rating2, horse.rating3, horse.rating4].some((r) => r != null && r > 0) && (
           <section className="space-y-3">
             <h2 className="font-heading text-2xl text-white">레이팅</h2>
             <div className="grid gap-4 sm:grid-cols-4">

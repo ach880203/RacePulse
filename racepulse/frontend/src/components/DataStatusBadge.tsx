@@ -13,26 +13,26 @@ interface Props {
 
 // 상태별 뱃지 설정을 객체로 미리 정의합니다.
 // 규칙 10: Tailwind 브랜드 토큰만 사용합니다.
+// 상태별 뱃지 표시 설정
+// COLLECTED = 백엔드에서 "수집 완료"를 의미하는 값.
+// 과거에 "데이터 수집 중"으로 잘못 표기돼 완료된 경주에 깜빡이는 뱃지가 남던 버그 수정.
 const STATUS_CONFIG: Record<DataStatus, { label: string; className: string; blink?: boolean }> = {
   READY: {
     label: '준비중',
-    // 회색 뱃지
     className: 'border-white/20 bg-white/8 text-white/60',
   },
   UPDATING: {
     label: '업데이트 예정',
-    // 파란색 계열 뱃지
     className: 'border-blue-400/30 bg-blue-400/10 text-blue-400',
+    blink: true, // 갱신 예정 상태만 주의 환기를 위해 깜빡임
   },
   COLLECTED: {
-    label: '데이터 수집 중',
-    // 노란색(골드) 뱃지 + 깜빡임
-    className: 'border-brand-gold-400/35 bg-brand-gold-400/10 text-brand-gold-400',
-    blink: true,
+    label: '수집 완료',
+    // 완료 상태 → 초록 계열, 깜빡임 없음
+    className: 'border-green-400/35 bg-green-400/10 text-green-400',
   },
   JOCKEY_CHANGED: {
     label: '기수변경',
-    // 빨간색 뱃지
     className: 'border-red-400/35 bg-red-400/10 text-red-400',
   },
 }
