@@ -362,6 +362,59 @@ class DataService:
         await self.db.commit()
         return summary
 
+    async def collect_horse_total_info(
+        self,
+        meet_codes: list[str],
+    ) -> CollectionSummary:
+        """마필종합 상세정보(부마명·모색·영문마명)를 KRA API(totalHorseInfo_1)에서 수집해 DB에 업데이트합니다.
+
+        raceHorseInfo_2에서 제공하지 않는 father_name(부마명)·color(모색)를 보완합니다.
+        주간 마스터 동기화(매주 월요일)에서 호출합니다.
+        """
+        all_items: list[dict[str, Any]] = []
+
+        try:
+            for meet_code in meet_codes:
+                items = await self.kra_api_service.fetch_total_horse_info_list(
+                    meet=self._meet_code_to_api_value(meet_code),
+                )
+                # 경마장 코드를 각 아이템에 주입합니다 (API 응답의 meet 필드가 없는 경우 대비).
+                for item in items:
+                    item["_meet_code"] = meet_code
+                all_items.extend(items)
+
+            records_collected, null_count, anomaly_count = await self._save_horse_total_items(all_items)
+            await self.db.commit()
+
+            summary = await self._build_summary(
+                api_name="horse_total_info",
+                status=CollectStatusEnum.SUCCESS if records_collected > 0 else CollectStatusEnum.PARTIAL,
+                records_collected=records_collected,
+                null_count=null_count,
+                anomaly_count=anomaly_count,
+                message=None if records_collected > 0 else "수집된 마필종합 데이터가 없습니다.",
+            )
+        except KRARateLimitExceededError as error:
+            await self.db.rollback()
+            summary = await self._build_summary(
+                api_name="horse_total_info",
+                status=CollectStatusEnum.SKIPPED,
+                records_collected=0, null_count=0, anomaly_count=0,
+                message=str(error),
+            )
+        except Exception as error:
+            await self.db.rollback()
+            summary = await self._build_summary(
+                api_name="horse_total_info",
+                status=CollectStatusEnum.FAILED,
+                records_collected=0, null_count=0, anomaly_count=0,
+                message=str(error),
+            )
+
+        await self._insert_collection_log(summary)
+        await self.db.commit()
+        return summary
+
     async def collect_track_conditions(
         self,
         meet_code: str,
@@ -916,6 +969,50 @@ class DataService:
                     set_={k: v for k, v in payload.items()},
                 )
             )
+            records_collected += 1
+
+        return records_collected, null_count, anomaly_count
+
+    async def _save_horse_total_items(self, items: list[dict[str, Any]]) -> tuple[int, int, int]:
+        # API: API42/totalHorseInfo_1 — 마필종합 상세정보
+        # raceHorseInfo_2에 없는 father_name(부마명)·color(모색)·eng_name 보완 전용입니다.
+        # 이미 DB에 있는 말의 부가 정보만 채우고, 새 말을 추가하지 않습니다.
+        records_collected = 0
+        null_count = 0
+        anomaly_count = 0
+
+        for item in items:
+            name = self._safe_text(item.get("hrName"))
+            meet_code = self._normalize_meet_code(item.get("meet")) or item.get("_meet_code")
+
+            if not name or not meet_code:
+                anomaly_count += 1
+                continue
+
+            # None이 아닌 필드만 setattr로 업데이트해 기존 값을 덮어쓰지 않습니다.
+            updates = {
+                "eng_name":    self._safe_text(item.get("hrEngName")),
+                "father_name": self._safe_text(item.get("faName")),
+                "mother_name": self._safe_text(item.get("moName")),
+                "color":       self._safe_text(item.get("color")),
+            }
+
+            null_count += self._count_null_values(updates)
+
+            horse = await self.db.scalar(
+                select(Horse).where(Horse.name == name).order_by((Horse.meet_code == meet_code).desc())
+            )
+            if horse is None:
+                # 마필종합 API에만 있고 명단에 없는 말은 새로 추가하지 않습니다.
+                # 이 함수의 목적은 기존 말의 혈통 정보 보완이므로 anomaly로만 기록합니다.
+                anomaly_count += 1
+                continue
+
+            for key, value in updates.items():
+                if value is not None:
+                    setattr(horse, key, value)
+            horse.updated_at = datetime.now()
+            await self.db.flush()
             records_collected += 1
 
         return records_collected, null_count, anomaly_count

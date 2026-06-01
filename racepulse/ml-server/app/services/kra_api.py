@@ -420,6 +420,34 @@ class KRAApiService:
             num_of_rows=num_of_rows,
         )
 
+    async def fetch_total_horse_info_list(
+        self,
+        meet: int,
+        num_of_rows: int = 100,
+    ) -> list[dict[str, Any]]:
+        """경마장별 마필종합 상세정보(부마명·모색·영문마명)를 전체 페이지 수집합니다.
+
+        출처: data.go.kr 15057985 — 마필종합 상세정보 (API42/totalHorseInfo_1)
+        fetch_total_horse_info(단건)와 달리 meet 파라미터로 경마장 전체 목록을 수집합니다.
+        주간 마스터 동기화에서 father_name·color·eng_name 일괄 보완 목적으로 사용합니다.
+        응답 주요 필드:
+          hrName    — 마명
+          hrEngName — 영문마명 → eng_name
+          faName    — 부마명   → father_name
+          moName    — 모마명   → mother_name
+          color     — 모색     → color
+        """
+        return await self._fetch_all_pages(
+            url=self.HORSE_TOTAL_URL,
+            base_params={
+                "serviceKey": settings.kma_api_key,
+                "meet": meet,
+                "_type": "json",
+            },
+            page_no=1,
+            num_of_rows=num_of_rows,
+        )
+
     async def fetch_track_conditions(
         self,
         meet: int,

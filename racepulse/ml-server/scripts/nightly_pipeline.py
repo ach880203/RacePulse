@@ -140,6 +140,69 @@ async def collect_missing_results(client: httpx.AsyncClient) -> dict:
 
 
 # =============================================================================
+# 주간 마스터 데이터 동기화 (매주 월요일)
+# =============================================================================
+
+async def sync_master_data(client: httpx.AsyncClient) -> dict:
+    """매주 월요일에 기수·조교사·말 마스터 데이터를 전체 동기화합니다.
+
+    자동 파이프라인에서 호출되지 않아 null 상태인 birth_year·win_rate·
+    father_name·color 등을 채우기 위해 Admin API를 통해 월 1회 전체 갱신합니다.
+    KRA API 일일 한도(2,800콜) 소진 위험이 있으므로 월요일에만 실행합니다.
+    """
+    log.info("[마스터동기화] 주간 마스터 데이터 동기화 시작")
+
+    MEET_CODES = ["SC", "BU", "JJ"]
+
+    # 호출 순서: 기수 → 조교사 → 말 기본 → 말 상세 → 기수성적 → 말종합(부마명/모색)
+    # collect_horse_total_info는 API 호출량이 많으므로 맨 마지막에 실행합니다.
+    MASTER_JOBS = [
+        "collect_master_jockeys",
+        "collect_master_trainers",
+        "collect_master_horses",
+        "collect_horse_details",
+        "collect_jockey_results",
+        "collect_horse_total_info",
+    ]
+
+    results = {}
+
+    for job_name in MASTER_JOBS:
+        results[job_name] = {}
+        for meet_code in MEET_CODES:
+            try:
+                resp = await client.post(
+                    f"{API_BASE}/admin/scheduler/run/{job_name}",
+                    json={"meet_code": meet_code},
+                    timeout=300,
+                )
+                resp.raise_for_status()
+                # Admin API 응답 구조: {"data": {"result": {meet_code: {...}}}}
+                job_result = resp.json().get("data", {}).get("result", {}).get(meet_code, {})
+                status = job_result.get("status", "UNKNOWN")
+                records = int(job_result.get("recordsCollected") or 0)
+
+                if status == "SKIPPED":
+                    # KRA API 한도 초과 시 해당 경마장 이후를 건너뛰되, 다음 job은 계속 시도합니다.
+                    log.warning("[마스터동기화] KRA API 한도 초과 — %s %s 건너뜀", job_name, meet_code)
+                    results[job_name][meet_code] = {"status": "SKIPPED"}
+                    continue
+
+                results[job_name][meet_code] = {"status": status, "records": records}
+                log.info("[마스터동기화] %s %s — %s, %d건", job_name, meet_code, status, records)
+
+            except Exception as e:
+                # 한 경마장 실패가 전체 마스터 동기화를 멈추지 않도록 실패만 기록하고 계속합니다.
+                results[job_name][meet_code] = {"status": "ERROR", "error": str(e)}
+                log.error("[마스터동기화] 실패 — %s %s: %s", job_name, meet_code, e)
+
+            await asyncio.sleep(0.5)  # 연속 호출 간격 조절로 서버 부하를 줄입니다.
+
+    log.info("[마스터동기화] 완료 — %d개 작업", len(MASTER_JOBS))
+    return results
+
+
+# =============================================================================
 # Phase 1-A: 신규 경주 피처 재계산 (병렬 4개 동시)
 # =============================================================================
 
@@ -336,6 +399,15 @@ async def main():
         log.info("\n[Phase 0] 최근 누락 경주 결과 재수집")
         collect_result = await collect_missing_results(client)
 
+        # ─── 주간 마스터 동기화 (월요일만) ──────────────────────────────
+        # 월요일(weekday=0)에만 실행: KRA API 호출량이 많아 매일 실행하면 한도 초과 위험이 있습니다.
+        master_result = None
+        if datetime.now().weekday() == 0:
+            log.info("\n[주간동기화] 월요일 — 마스터 데이터 전체 동기화 실행")
+            master_result = await sync_master_data(client)
+        else:
+            log.info("[주간동기화] 오늘은 월요일이 아님 — 건너뜀")
+
         # ─── Phase 1: 병렬 실행 ───────────────────────────────────────────
         log.info("\n[Phase 1] 피처재계산 + 라이벌 + 스타일 + FE빌드 병렬 실행")
 
@@ -362,6 +434,8 @@ async def main():
     log.info("\n" + "=" * 60)
     log.info("야간 파이프라인 완료 — %s", datetime.now().strftime("%Y-%m-%d %H:%M"))
     log.info("  결과재수집: %s", collect_result)
+    if master_result is not None:
+        log.info("  마스터동기화: %d개 작업 완료", len(master_result))
     log.info("  피처: %s", feature_result)
     log.info("  라이벌: %s", rival_result)
     log.info("  스타일: %s", style_result)

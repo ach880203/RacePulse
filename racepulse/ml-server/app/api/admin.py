@@ -73,6 +73,7 @@ RUNNABLE_JOBS: dict[str, str] = {
     "collect_horse_results":           "경주마 성적 수집",
     "collect_horse_details":           "경주마 상세정보 수집",
     "collect_track_conditions":        "경주로 상태 수집",
+    "collect_horse_total_info":        "마필종합 상세정보 수집 (부마명·모색·영문마명)",
     "collect_weather_short":           "단기예보 수집",
     "collect_weather_mid":             "중기예보 수집",
     "reset_daily_counter":             "일일 카운터 리셋",
@@ -243,6 +244,7 @@ async def _dispatch_job(job_name: str) -> dict:
     if job_name in (
         "collect_master_jockeys", "collect_master_trainers", "collect_master_horses",
         "collect_jockey_results", "collect_horse_results", "collect_horse_details",
+        "collect_horse_total_info",
     ):
         results = {}
         for meet_code in ALL_MEET_CODES:
@@ -260,6 +262,9 @@ async def _dispatch_job(job_name: str) -> dict:
                         summary = await ds.collect_jockey_results([meet_code])
                     elif job_name == "collect_horse_results":
                         summary = await ds.collect_horse_results([meet_code])
+                    elif job_name == "collect_horse_total_info":
+                        # 부마명(father_name)·모색(color)·영문마명은 totalHorseInfo_1 전용 수집입니다.
+                        summary = await ds.collect_horse_total_info([meet_code])
                     else:
                         summary = await ds.collect_horse_details([meet_code])
                     results[meet_code] = {
