@@ -10,6 +10,8 @@ import com.racepulse.backend.domain.horse.dto.HorseResponse;
 import com.racepulse.backend.domain.horse.entity.Horse;
 import com.racepulse.backend.domain.horse.repository.HorseRepository;
 import com.racepulse.backend.domain.race.entity.MeetCode;
+import com.racepulse.backend.global.exception.BusinessException;
+import com.racepulse.backend.global.exception.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
 
@@ -46,5 +48,12 @@ public class HorseService {
 
         return horseRepository.findAll(specification, pageable)
                 .map(HorseResponse::from);
+    }
+
+    /** 경주마 ID로 단건 조회합니다. 없으면 404 예외를 던집니다. */
+    public HorseResponse getHorseById(Long horseId) {
+        Horse horse = horseRepository.findById(horseId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.HORSE_NOT_FOUND));
+        return HorseResponse.from(horse);
     }
 }

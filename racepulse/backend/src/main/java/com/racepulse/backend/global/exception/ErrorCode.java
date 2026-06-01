@@ -26,9 +26,16 @@ public enum ErrorCode {
         EMAIL_DUPLICATE(409, "이미 존재하는 이메일입니다."),
         TERMS_NOT_AGREED(400, "이용약관 동의가 필요합니다."),
 
+        // 관리자 수집
+        ADMIN_COLLECTION_RUNNING(409, "이미 수집이 실행 중입니다."),
+        ADMIN_COLLECTION_TRIGGER_FAILED(503, "수집 시작에 실패했습니다."),
+
         // 경주
         RACE_NOT_FOUND(404, "경주를 찾을 수 없습니다."),
-        HORSE_NOT_FOUND(404, "말을 찾을 수 없습니다.");
+        HORSE_NOT_FOUND(404, "말을 찾을 수 없습니다."),
+        JOCKEY_NOT_FOUND(404, "기수를 찾을 수 없습니다."),
+        TRAINER_NOT_FOUND(404, "조교사를 찾을 수 없습니다."),
+        RACECOURSE_NOT_FOUND(404, "경마장을 찾을 수 없습니다.");
 
         private final int status;   // HTTP 상태코드
         private final String message; // 클라이언트에 전달할 메시지

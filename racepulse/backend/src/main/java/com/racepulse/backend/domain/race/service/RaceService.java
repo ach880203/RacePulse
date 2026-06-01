@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -61,6 +62,39 @@ public class RaceService {
 
         return raceRepository.findAll(specification, pageable)
                 .map(RaceResponse::from);
+    }
+
+    /**
+     * 오늘 이후 예정 경주를 최대 20건 조회합니다.
+     *
+     * 컨트롤러에서 날짜 조건을 만들지 않고 서비스에서 처리하는 이유는, "오늘" 기준이 바뀌어도
+     * API 호출자는 같은 URL만 호출하면 되고 조회 규칙은 한 곳에서만 관리되기 때문입니다.
+     */
+    public List<RaceResponse> getUpcomingRaces() {
+        return raceRepository.findByRcDateGreaterThanEqualAndStatusOrderByRcDateAscStartTimeAscRaceNoAsc(
+                        LocalDate.now(),
+                        RaceStatus.SCHEDULED,
+                        PageRequest.of(0, 20)
+                )
+                .stream()
+                .map(RaceResponse::from)
+                .toList();
+    }
+
+    /**
+     * 최근 완료 경주를 최대 20건 조회합니다.
+     *
+     * 완료 경주가 없을 수도 있으므로 빈 목록을 정상 응답으로 돌려주며,
+     * 데이터가 없다는 이유로 500이 발생하지 않도록 예외를 던지지 않습니다.
+     */
+    public List<RaceResponse> getRecentResults() {
+        return raceRepository.findByStatusOrderByRcDateDescRaceNoDesc(
+                        RaceStatus.COMPLETED,
+                        PageRequest.of(0, 20)
+                )
+                .stream()
+                .map(RaceResponse::from)
+                .toList();
     }
 
     // =========================================================================
@@ -139,6 +173,7 @@ public class RaceService {
                     re.gate_no             AS "gateNo",
                     rr.rank                AS "finishOrder",
                     rr.record_time         AS "finishTime",
+                    rr.margin              AS "margin",
                     rr.final_odds          AS "finalOdds",
                     j.name                 AS "jockeyName"
                 FROM race_results rr

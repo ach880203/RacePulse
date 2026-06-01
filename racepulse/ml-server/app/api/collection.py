@@ -7,12 +7,12 @@
 # =============================================================================
 
 # date = 수집 대상 경주일자를 받기 위한 타입입니다.
-from datetime import date
+from datetime import date, datetime
 # Literal = 요청 body에서 허용하는 collection_type 문자열 후보를 제한하는 타입입니다.
 from typing import Literal
 
 # APIRouter = 관련 API들을 하나의 라우터 묶음으로 관리하는 FastAPI 도구입니다.
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 # BaseModel/Field = 요청 body 형식을 문서화하고 검증하는 Pydantic 도구입니다.
 from pydantic import BaseModel, Field
 # AsyncSession = DB 세션 타입입니다.
@@ -26,6 +26,8 @@ from app.services.data_service import DataService
 from app.services.kra_api import KRAApiError, KRAApiService
 # WeatherApiService = 기상청 API 호출 및 날씨 데이터 저장을 담당하는 서비스입니다.
 from app.services.weather_api import WeatherApiService
+# CollectionScheduler = 기존 자동 수집 로직을 수동 API에서도 재사용해 수집 규칙이 갈라지지 않게 합니다.
+from app.scheduler.scheduler import CollectionScheduler
 
 router = APIRouter(prefix="/collection")
 
@@ -59,6 +61,50 @@ class CollectionTestRequest(BaseModel):
         default=None,
         description="경주계획표 수집 시 대상 월(예: 202605)",
     )
+
+
+async def _run_manual_entries_collection() -> None:
+    """관리자 수동 출전표 수집을 백그라운드에서 실행합니다."""
+    scheduler = CollectionScheduler()
+    await scheduler.collect_friday_final_entries()
+
+
+async def _run_manual_results_collection() -> None:
+    """관리자 수동 결과 수집을 백그라운드에서 실행합니다."""
+    scheduler = CollectionScheduler()
+    # 주말 결과와 월요일 결과 수집을 모두 호출해 수동 실행 날짜에 따른 누락 가능성을 줄입니다.
+    await scheduler.collect_weekend_results()
+    await scheduler.collect_monday_results()
+
+
+@router.post("/entries")
+async def trigger_entries_collection(background_tasks: BackgroundTasks):
+    """Spring 관리자 API가 출전표 수집을 즉시 시작할 때 사용하는 내부 엔드포인트입니다."""
+    # 응답을 먼저 돌려줘야 관리자 화면이 오래 기다리지 않고, 실제 수집은 서버 백그라운드에서 이어집니다.
+    background_tasks.add_task(_run_manual_entries_collection)
+    return {
+        "success": True,
+        "data": {
+            "triggeredAt": datetime.now().isoformat(),
+            "type": "ENTRIES",
+        },
+        "message": "출전표 수집이 시작되었습니다.",
+    }
+
+
+@router.post("/results")
+async def trigger_results_collection(background_tasks: BackgroundTasks):
+    """Spring 관리자 API가 경기 결과 수집을 즉시 시작할 때 사용하는 내부 엔드포인트입니다."""
+    # 결과 수집은 오래 걸릴 수 있으므로 요청 접수와 실제 처리 시간을 분리합니다.
+    background_tasks.add_task(_run_manual_results_collection)
+    return {
+        "success": True,
+        "data": {
+            "triggeredAt": datetime.now().isoformat(),
+            "type": "RESULTS",
+        },
+        "message": "경기 결과 수집이 시작되었습니다.",
+    }
 
 
 @router.post("/test")

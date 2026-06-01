@@ -30,4 +30,19 @@ public class HealthController {
                 )
         );
     }
+
+    // 프론트 첫 화면에서 인증 없이 백엔드 연결 상태를 확인할 수 있도록 공개 홈 API를 제공합니다.
+    // health와 같은 단순 응답이지만, /home 경로를 별도로 두면 화면 코드가 서버 상태를 빠르게 판별할 수 있습니다.
+    @GetMapping("/home")
+    public ResponseEntity<ApiResponse<Map<String, String>>> home() {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        Map.of(
+                                "service", "RacePulse Backend",
+                                "message", "홈 조회 성공"
+                        ),
+                        "홈 조회 성공"
+                )
+        );
+    }
 }

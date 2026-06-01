@@ -32,5 +32,6 @@ export interface RaceResult {
   finalOdds: number | null
   finishOrder: number | null  // 착순 (1위, 2위 ...)
   finishTime: string | null   // "1:12.5" 형식
+  margin?: string | null       // 1위와의 차이, 백엔드 데이터가 없으면 화면에서 '-'로 보정합니다.
   jockeyName: string | null
 }

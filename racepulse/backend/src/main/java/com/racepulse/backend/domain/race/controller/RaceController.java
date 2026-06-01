@@ -66,6 +66,18 @@ public class RaceController {
         return ResponseEntity.ok(ApiResponse.success(response, "조회 성공"));
     }
 
+    @Operation(summary = "예정 경주 조회", description = "오늘 이후 예정된 경주를 최대 20건 조회합니다.")
+    @GetMapping("/upcoming")
+    public ResponseEntity<ApiResponse<List<RaceResponse>>> getUpcomingRaces() {
+        return ResponseEntity.ok(ApiResponse.success(raceService.getUpcomingRaces(), "조회 성공"));
+    }
+
+    @Operation(summary = "최근 결과 조회", description = "최근 완료된 경주를 날짜 내림차순으로 최대 20건 조회합니다.")
+    @GetMapping("/results")
+    public ResponseEntity<ApiResponse<List<RaceResponse>>> getRecentResults() {
+        return ResponseEntity.ok(ApiResponse.success(raceService.getRecentResults(), "조회 성공"));
+    }
+
     // =========================================================================
     // 코드 리뷰 #1: 누락 엔드포인트 추가
     // =========================================================================

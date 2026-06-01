@@ -5,6 +5,7 @@ package com.racepulse.backend.domain.race.controller;
 // =============================================================================
 
 import com.racepulse.backend.domain.race.dto.AccuracyStatsDto;
+import com.racepulse.backend.domain.race.dto.WeeklyDashboardResponse;
 import com.racepulse.backend.domain.race.service.DashboardService;
 import com.racepulse.backend.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,5 +33,15 @@ public class DashboardController {
     public ResponseEntity<ApiResponse<AccuracyStatsDto>> getAccuracyStats() {
         AccuracyStatsDto stats = dashboardService.getAccuracyStats();
         return ResponseEntity.ok(ApiResponse.success(stats, "정확도 통계 조회 성공"));
+    }
+
+    @Operation(
+        summary = "주간 대시보드 조회",
+        description = "이번 주 경주 수, 예측 건수, 정확도 요약과 주요 경주 목록을 반환합니다."
+    )
+    @GetMapping("/weekly")
+    public ResponseEntity<ApiResponse<WeeklyDashboardResponse>> getWeeklyDashboard() {
+        WeeklyDashboardResponse response = dashboardService.getWeeklyDashboard();
+        return ResponseEntity.ok(ApiResponse.success(response, "주간 대시보드 조회 성공"));
     }
 }

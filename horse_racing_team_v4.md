@@ -117,7 +117,7 @@
 
 ---
 
-## 🗄️ DB 현황 (Flyway V1~V13 / 총 43개 테이블)
+## 🗄️ DB 현황 (Flyway V1~V14 / 총 43개 테이블)
 
 | Flyway | 내용 |
 |--------|------|
@@ -126,6 +126,7 @@
 | V3~V5 | Phase 1 — push_subscriptions / user_profile / Phase 3 테이블 |
 | V6~V12 | Phase 2 — ML 피처스토어 / 경주출전 / 스키마 정렬 / rival+style |
 | V13 | Phase 3 — trainer_changes / equipment_changes / user_wallets / AI 품질 컬럼 |
+| V14 | Phase 4 — horses 승률 컬럼 4개 (win_rate_total/recent, place_rate_total, debut_year) + races.moisture_level |
 
 ### 현재 DB 데이터 현황 (2026-05-27 기준)
 
@@ -249,6 +250,50 @@
 
 ---
 
+## 📋 Codex 프롬프트 작성 원칙
+
+> **새 Codex 프롬프트를 작성할 때 반드시 `## ⚠️ 프로젝트 필수 규칙` 섹션을 포함해야 합니다.**
+> 규칙이 없으면 Codex가 프로젝트 컨벤션을 무시한 코드를 생성합니다.
+> (20차 세션에서 ResponseStatusException 오용, localhost 하드코딩 등 사례 발생)
+
+### 모든 프롬프트 공통
+```
+- 커밋 메시지: `feat: [prompt-N] 작업 설명` 형식 명시
+- 코드 주석: 함수·중요 로직마다 WHY를 설명하는 주석 한 줄 이상
+- 화면에 표시되는 모든 텍스트: 한글 전용 (변수명·클래스명·enum·브랜드명 제외)
+```
+
+### BE 프롬프트 포함 필수 규칙
+```
+- 예외 처리: ResponseStatusException 금지 → BusinessException(ErrorCode.XXX) 사용
+  (ErrorCode.java enum에 없으면 추가 후 사용)
+- 공통 응답: ApiResponse<T> 래퍼 필수 / 목록은 PageResponse<T>
+- URL prefix: /api/v1/ 전체 적용
+- application-dev.yaml 민감키 기본값 하드코딩 금지
+- 도메인 구조: Controller → Service → Repository 패턴 유지
+```
+
+### FE 프롬프트 포함 필수 규칙
+```
+- axios: 기존 axiosInstance 사용 (src/services/axiosInstance.ts) — 새 인스턴스 생성 금지
+- 환경변수: localhost URL 하드코딩 금지 — axiosInstance baseURL이 자동 처리
+- Toast: 기존 Toast 컴포넌트 재사용 (src/components/Toast.tsx) — 새로 만들지 말 것
+- FE → Spring Boot만: FastAPI(8000) 직접 호출 절대 금지
+- 라우팅: lazy() + Suspense 패턴 유지
+- data_status: READY / UPDATING / COLLECTED / JOCKEY_CHANGED
+```
+
+### ML/Python 프롬프트 포함 필수 규칙
+```
+- 기존 함수 구조와 동일한 패턴으로 작성
+- 에러 격리: 예외 발생 시 해당 단계만 실패 — 전체 파이프라인 중단 금지
+- KRA API SKIPPED 응답: 해당 job만 건너뜀, 파이프라인 계속 진행
+- 로그: 기존 로그 패턴 사용, print() 직접 사용 금지
+- nightly_pipeline.py 수정 시: 동일 파일 건드리는 프롬프트는 반드시 순차 실행
+```
+
+---
+
 ## 📅 전체 마일스톤
 
 | Phase | 목표 | 완료 |
@@ -257,10 +302,11 @@
 | Phase 1 | 수집파이프라인 / BE뼈대 / FE라우팅 | ✅ 2026-05-14 |
 | Phase 2 | ML예측 / Monte Carlo / 시각화 대시보드 | ✅ 2026-05-15 |
 | Phase 3 | AI해설 / Bayesian MC / Freemium / 편자 | ✅ 2026-05-22 |
-| **Phase 4** | **Docker 복구 + API 완성 + 화면 완성 + 운영 품질** | 진행 중 |
-| Phase 5 | 미니게임 (다마고치 + 퀴즈 + 토너먼트 + 상점) | 예정 |
-| Phase 6 | AWS 배포 + CI/CD + 부하테스트 (Terraform) | 예정 |
-| Phase 7 | README + 포트폴리오 문서화 | 최종 |
+| **Phase 4** | **Docker 복구 + API 완성 + Placeholder 11개 + 버그수정 + 품질** | 진행 중 |
+| **Phase 5** | **UI/UX 전면 개선 (모바일 + 시각언어 + 애니메이션 + 데이터 밀도)** | 예정 |
+| Phase 6 | 미니게임 (다마고치 + 퀴즈 + 토너먼트 + 상점) | 예정 |
+| Phase 7 | AWS 배포 + CI/CD + 부하테스트 (Terraform) | 예정 |
+| Phase 8 | README + 포트폴리오 문서화 | 최종 |
 
 ---
 
@@ -289,96 +335,201 @@
 
 ---
 
-## 🔴 Phase 4 작업 목록 (우선순위 순)
+## 🔴 Phase 4 작업 목록 (우선순위 순) — 총 35개
 
-> 작업 순서 원칙: Docker 복구 → API 구현 → 화면 구현 → 운영 품질
-> (화면보다 API를 먼저 해야 화면 구현 시 뜯지 않아도 됨)
+> 작업 순서 원칙: 버그수정 → Docker 복구 → API 구현 → 화면 구현 → 운영 품질
+> API를 먼저 완성해야 화면 구현 시 재작업 없음
 
-### 4-1. Docker 실행 재현성 복구 🔴 (최우선)
+### 4-0. 버그 수정 🔴 (즉시 처리)
+
+| # | 작업 | 원인 | 파일 | 상태 |
+|---|------|------|------|------|
+| 1 | `DataStatusBadge` `COLLECTED` → "수집 완료" 수정 | FE에서 완료 상태를 "수집 중"으로 잘못 표기 + 깜빡임 | `DataStatusBadge.tsx` | ✅ 완료 |
+| 2 | 몬테카를로 "계산 중..." 영구 표시 수정 | `isLoading/isError` 미분기 → API 오류 시 무한 표시 | `RacePredictionPage.tsx` | ✅ 완료 |
+
+### 4-1. Docker 실행 재현성 복구 🔴 (최우선 블로커)
 
 | # | 작업 | 현재 문제 | 파일 |
 |---|------|---------|------|
-| 1 | ML Dockerfile 이미지명 수정 | `python=:3.11-slim` 오타 → 빌드 실패 | `racepulse/ml-server/Dockerfile` |
-| 2 | ML Compose DB URL 수정 | `postgresql://` → `postgresql+asyncpg://` | `racepulse/docker-compose.yml` |
-| 3 | BE Dockerfile 작성 + Compose 실제 앱 연결 | 현재 임시 이미지(`eclipse-temurin:21-jre`) — 앱 없음 | `racepulse/docker-compose.yml` |
+| 3 | ML Dockerfile 이미지명 수정 | `python=:3.11-slim` 오타 → 빌드 실패 | `ml-server/Dockerfile` |
+| 4 | ML Compose DB URL 수정 | `postgresql://` → `postgresql+asyncpg://` | `docker-compose.yml` |
+| 5 | BE Dockerfile 작성 + Compose 실제 앱 연결 | 임시 이미지(`eclipse-temurin:21-jre`) — 앱 없음 | `docker-compose.yml` |
 
 ### 4-2. BE API 구현 🔴
 
 | # | 작업 | 현재 상태 |
 |---|------|---------|
-| 4 | `GET /horses/{id}` 구현 | 500 (컨트롤러 없음) |
-| 5 | `GET /jockeys/{id}` 구현 + SecurityConfig 공개 허용 | 403 (컨트롤러 없음) |
-| 6 | `GET /trainers/{id}` 구현 + SecurityConfig 공개 허용 | 403 (컨트롤러 없음) |
-| 7 | `GET /racecourses/{meetCode}` 구현 | 500 (컨트롤러 없음) |
-| 8 | `/races/upcoming` 500 수정 | 쿼리 오류 |
-| 9 | `/races/results` 500 수정 | 쿼리 오류 |
-| 10 | `/dashboard/weekly` 500 수정 | 집계 쿼리 오류 |
-| 11 | `/home` 403 수정 | SecurityConfig 공개 경로 누락 |
-| 12 | FastAPI 스케줄러 상태 API 수정 | 별도 인스턴스 생성 → 항상 `running: false` |
+| 6 | SecurityConfig 공개 경로 추가 (`/home` `/jockeys/{id}` `/trainers/{id}`) | ✅ 완료 |
+| 7 | `GET /horses/{id}` 구현 + 없을 때 404 반환 | ✅ 완료 |
+| 8 | `GET /jockeys/{id}` 컨트롤러 구현 | ✅ 완료 |
+| 9 | `GET /trainers/{id}` 컨트롤러 구현 | ✅ 완료 |
+| 10 | `GET /racecourses/{meetCode}` 컨트롤러 구현 | 500 |
+| 11 | `/races/upcoming` 쿼리 오류 수정 | 500 |
+| 12 | `/races/results` 쿼리 오류 수정 | 500 |
+| 13 | `/dashboard/weekly` 집계 쿼리 수정 | 500 |
+| 14 | FastAPI 스케줄러 상태 API 실제 인스턴스 참조 수정 | 항상 false |
+| 15 | 수동 수집 API 추가 `POST /admin/collection/trigger/entries` (출전표) | 신규 |
+| 16 | 수동 수집 API 추가 `POST /admin/collection/trigger/results` (경기 결과) | 신규 |
+| 17 | 수동 수집 상태 조회 `GET /admin/collection/trigger/status` | 신규 |
 
 ### 4-3. FE Placeholder 화면 구현 🟡
 
-| # | 화면 | 경로 | 비고 |
-|---|------|------|------|
-| 13 | 로그인 | `/login` | PrivateRoute가 여기로 리다이렉트 중 |
-| 14 | 회원가입 | `/register` | |
-| 15 | 카카오 OAuth 콜백 | `/auth/kakao/callback` | |
-| 16 | 경주 결과 | `/races/:raceId/result` | API 200, 화면만 없음 |
-| 17 | AI 해설 | `/races/:raceId/commentary` | API 200, 화면만 없음 |
-| 18 | 경주마 목록 | `/horses` | DB 10,574마리 있음 |
-| 19 | 경주마 성적 이력 | `/horses/:horseId/history` | |
-| 20 | 경마장 목록 | `/racecourses` | |
-| 21 | 경마장 상세 | `/racecourses/:meetCode` | |
-| 22 | 관리자 대시보드 | `/admin` | |
-| 23 | 수집 현황 | `/admin/collection` | |
+| # | 화면 | 경로 | 긴급도 |
+|---|------|------|--------|
+| 18 | 로그인 | `/login` | 🔴 PrivateRoute 전제 |
+| 19 | 회원가입 | `/register` | 🔴 |
+| 20 | 카카오 OAuth 콜백 | `/auth/kakao/callback` | 🔴 |
+| 21 | 경주 결과 | `/races/:raceId/result` | 🔴 API 이미 200 |
+| 22 | AI 해설 | `/races/:raceId/commentary` | 🔴 API 이미 200 |
+| 23 | 경주마 목록 | `/horses` | 🟡 DB 10,574마리 |
+| 24 | 경주마 성적 이력 | `/horses/:horseId/history` | 🟡 |
+| 25 | 경마장 목록 | `/racecourses` | 🟡 |
+| 26 | 경마장 상세 | `/racecourses/:meetCode` | 🟡 |
+| 27 | 관리자 대시보드 | `/admin` | 🟡 |
+| 28 | 수집 현황 + **수동 수집 버튼** | `/admin/collection` | 🟡 |
+
+**수집 현황 페이지 수동 수집 버튼 스펙**:
+- [출전표 수집] → `POST /admin/collection/trigger/entries`
+- [경기 결과 수집] → `POST /admin/collection/trigger/results`
+- [전체 수집] → 두 API 순차 호출
+- 실행 중 버튼 비활성화 (중복 방지) / 실패 시 에러 메시지 + 재시도
 
 ### 4-4. 운영 품질 정리 🟡
 
 | # | 작업 | 근거 |
 |---|------|------|
-| 24 | UI 영어 문구 한글화 | `AI RACE INTELLIGENCE`, `TODAY RACES`, `PREDICTION SCORE`, `WEEKLY REPORT` 등 |
-| 25 | 날씨 API — FE ML 직접 호출 → Spring Boot 프록시 통일 | `raceApi.ts:26` / 아키텍처 규칙 위반 |
-| 26 | `.gitignore` 로그 파일 추가 | `bulk_stdout.txt`, `bulk_stderr.txt`, `nightly_log.txt` 커밋 위험 |
-| 27 | GitHub Actions 위치 정리 | 루트 `.github/workflows` vs `racepulse/.github/workflows` 중복 |
-| 28 | 대시보드 데모 데이터 `isDemo: true` 플래그 추가 | Top-1/3 100% 오해 방지 |
-| 29 | BE `/horses/{id}` 없는 경우 500 → 404 응답 개선 | 프론트 오류 구분 불가 |
-| 30 | FastAPI charset 명시 (`application/json; charset=utf-8`) | 운영 도구 한글 깨짐 |
-| 31 | 월간 마스터 수집 TODO 구현 | `scheduler.py collect_monthly` 미구현 |
+| 29 | UI 영어 문구 한글화 | `AI RACE INTELLIGENCE`, `TODAY RACES`, `PREDICTION SCORE`, `RACE BOARD` 등 |
+| 30 | 날씨 API FE→FastAPI 직접 호출 → Spring Boot 프록시 통일 | `raceApi.ts:26` 아키텍처 규칙 위반 |
+| 31 | `.gitignore` 로그 파일 추가 | `bulk_stdout/stderr.txt`, `nightly_log.txt` 커밋 위험 |
+| 32 | GitHub Actions 워크플로우 중복 정리 | 루트 vs `racepulse/` 중복 |
+| 33 | 대시보드 `isDemo: true` 플래그 + 안내 문구 | Top-1/3 100% 수치 오해 방지 |
+| 34 | FastAPI `charset=utf-8` 명시 | 운영 도구 한글 깨짐 |
+| 35 | 월간 마스터 수집 `collect_monthly` TODO 구현 | ✅ 완료 (19차 세션) |
 
 ---
 
-## 🟢 Phase 5 — 미니게임 (Phase 4 완료 후)
+## 🎨 Phase 5 — UI/UX 전면 개선 (Phase 4 완료 후) — 총 36개
+
+> **목표**: "재미없고 평범하다" → "세상에 없는 경마 플랫폼"
+> 기능이 완성된 상태에서 다듬어야 재작업 없음
+
+### 5-1. 모바일 필수 🔴
+
+| # | 작업 | 상세 |
+|---|------|------|
+| 1 | 하단 네비게이션 바 | `홈/경주/즐겨찾기/검색/마이` — iPhone Safe Area 대응 |
+| 2 | 햄버거 메뉴 드로어 | 왼쪽 슬라이드 패널 — 전체 메뉴 + 로그인 버튼 |
+| 3 | 날짜 picker 커스텀 | 브라우저 기본 input → 골드/네이비 달력 팝업 |
+| 4 | ECharts 차트 모바일 반응형 | 고정 height → `ResponsiveContainer` |
+| 5 | WalletHUD 모바일 배치 개선 | 헤더 → 드로어 내부 이동 |
+
+### 5-2. 경마 시각 언어
+
+| # | 작업 | 상세 |
+|---|------|------|
+| 6 | 게이트 번호 컬러 배지 | 1흰/2검/3빨/4파/5노/6초/7주/8분홍 — 실제 경마 규격 |
+| 7 | 말 폼 도트 | 최근 5경주 ●●○●● — 입상/미입상 시각화 |
+| 8 | 트랙 컨디션 아이콘 | ☀️양호/🌥️보통/🌧️불량 — 날씨 API 연동 |
+| 9 | 경주 거리 시각화 바 | 1000m~2400m 범위 내 현재 거리 위치 |
+| 10 | 경마장 컬러 코딩 | 서울 빨강/부산 파랑/제주 초록 전역 일관 적용 |
+
+### 5-3. 라이브 & 긴장감
+
+| # | 작업 | 상세 |
+|---|------|------|
+| 11 | 라이브 펄스 배지 | `animate-ping` 빨간 점 — 1시간 전부터 표시 |
+| 12 | 카운트다운 색 전환 | D+골드 → 12h주황 → 1h빨강 → 30m빨강+글로우 |
+| 13 | 오늘의 주목 경주 스포트라이트 | 홈 최상단 — AI 신뢰도 최고 경주 풀와이드 |
+| 14 | 실시간 배당 변동 인디케이터 | OddsMovementChart 카드 연결, ▲▼ 컬러 |
+
+### 5-4. 디자인 시스템 개편
+
+| # | 작업 | 상세 |
+|---|------|------|
+| 15 | 배경 서브틀 그리드 | 40×40px 반투명 격자 — Bloomberg Terminal 느낌 |
+| 16 | 골드 그라데이션 테두리 | gradient border-image — 주요 카드 |
+| 17 | 카드 계층 구조 3단계 | Hero(골드글로우)/Primary(현재)/Secondary(bg만) |
+| 18 | 노이즈 텍스처 레이어 | 단색 배경 → 노이즈+그라데이션 오버레이 |
+
+### 5-5. 애니메이션 & 인터랙션
+
+| # | 작업 | 상세 |
+|---|------|------|
+| 19 | 페이지 전환 fade (Framer Motion) | 0.2초 fade + 위에서 살짝 내려오는 슬라이드 |
+| 20 | 숫자 카운트업 애니메이션 | 대시보드 수치 0→실제값 1.2초 카운트업 |
+| 21 | 카드 hover 골드 그림자 | `shadow-gold` + 좌측 골드 강조선 슬라이드인 |
+| 22 | 예측 결과 stagger 등장 | 1위→2위→3위 0.1초 간격 순차 등장 |
+| 23 | 스크롤 프로그레스 바 | 상단 얇은 골드 라인 — 페이지 스크롤 진행도 |
+
+### 5-6. 데이터 밀도 강화
+
+| # | 작업 | 상세 |
+|---|------|------|
+| 24 | 히어로 "지금 이 순간" 개편 | LIVE배지 + 다음 경주 카운트다운 + 예측 진행률 |
+| 25 | 경주마 카드 미니 레이더 차트 | RatingRadarChart 컴포넌트 카드에 연결 |
+| 26 | 주간 성적 히트맵 | 최근 20경주 GitHub 잔디 스타일 |
+| 27 | 경마장 오늘 요약 카드 | 서울/부산/제주 — 경주수/날씨/트랙 나란히 |
+| 28 | 말 비교 기능 | `/horses/compare?ids=1,2,3` 최대 3마리 |
+
+### 5-7. 모바일 심화
+
+| # | 작업 | 상세 |
+|---|------|------|
+| 29 | 무한 스크롤 | 페이지네이션 → `useInfiniteQuery` 전환 |
+| 30 | Pull-to-refresh | 당겨서 새로고침 — 골드 스피너 |
+| 31 | 스와이프 제스처 | 카드 우스와이프→즐겨찾기 / 좌스와이프→예측 |
+
+### 5-8. Premium 디테일
+
+| # | 작업 | 상세 |
+|---|------|------|
+| 32 | 로고 SVG 교체 | `RP` 텍스트 → 경주마 실루엣 + hover 달리기 애니메이션 |
+| 33 | Upset Alert | 하위 배당 말의 통계적 유리함 표시 |
+| 34 | 날씨×경주 상관관계 인사이트 | "비 올 때 이 말 Top-3 +18%" 맥락 |
+| 35 | PWA 설치 유도 배너 | 3회 방문 후 "홈 화면에 추가" |
+| 36 | 사운드 토글 | 경주 시작 알림음 / 예측 결과 팡파레 |
+
+---
+
+## 🎮 Phase 6 — 미니게임 (Phase 5 완료 후)
 
 ### 게임 1: 다마고치 "나의 경주마"
 - 실제 경주마 선택 → 밥주기(건초) / 훈련 / 일일 케어
-- 실제 경주 결과가 말 컨디션에 자동 반영
+- 실제 경주 결과 → 말 컨디션 자동 반영
 - 연속 좋은 성적 → 레벨업 / 카드 등급 상승
-- 출석 + 퀴즈로 편자/건초 획득
+- 출석 체크 + 퀴즈로 편자/건초 획득
 
 ### 게임 2: 경마 마스터 퀴즈
-- 실제 DB 데이터 기반 문제 자동 생성 (5문제 중 3개 / 시간제한 30초)
+- 실제 DB 데이터 기반 문제 자동 생성
+- 5문제 중 3개 / 시간제한 30초
 - 연속 정답 → 분석가 등급 상승
 
-### Phase 5 이후: 토너먼트 + 상점
-- 편자 토너먼트 (1위 150개 / 2위 100개 / 3위 60개)
-- 아이템 상점 (사료/훈련/외형 구입)
+### 게임 3: 편자 토너먼트
+- 1위 150개 / 2위 100개 / 3위 60개
+- 주간 리더보드
+
+### 게임 4: 아이템 상점
+- 사료 / 훈련 / 외형 구입
+- 편자(금/은) + 건초 통화 시스템
 
 ---
 
-## 🔵 Phase 6 — AWS 배포 (Phase 5 완료 후)
+## ☁️ Phase 7 — AWS 배포 + CI/CD + 부하테스트 (Phase 6 완료 후)
 
 - **Terraform 사용** (이미 설치 완료)
-- EC2 3서버 (React Nginx / Spring Boot BE / FastAPI ML) + ALB + CloudFront
-- 배포 일정: 화요일 02:00~06:00 정기 점검일
+- EC2 3대: React Nginx / Spring Boot BE / FastAPI ML
+- ALB + CloudFront CDN / RDS PostgreSQL + ElastiCache Redis
+- GitHub Actions → Docker Build → ECR → EC2 Blue/Green 배포
 - 부하 테스트: 동시 사용자 100명 / p95 500ms 목표
+- 도메인 + HTTPS (ACM) / 마사회 API 상업적 이용 신청 (배포 후)
 
 ---
 
-## 📄 Phase 7 — README + 포트폴리오 문서화 (최종 마무리)
+## 📄 Phase 8 — README + 포트폴리오 문서화 (최종 마무리)
 
 - README.md (기술스택 / 아키텍처 / 실행방법 / 스크린샷 + 실제 URL)
-- 포트폴리오 문서 (기술 선택 이유 / 성과 수치 / 예측 정확도)
-- 마사회 API 상업적 이용 신청 (배포 후 진행)
+- 포트폴리오 문서 (기술 선택 이유 / 성과 수치 / 예측 정확도 99.85%)
+- 기술 블로그 포스팅 (선택)
 
 ---
 
@@ -414,14 +565,219 @@
 
 | Phase | 목표 |
 |-------|------|
-| Phase 4 | Docker 복구 + API 구현 + Placeholder 화면 완성 + 운영 품질 정리 |
-| Phase 5 | 미니게임 (다마고치 + 퀴즈 + 토너먼트 + 상점) |
-| Phase 6 | AWS 배포 + CI/CD + 부하테스트 (Terraform) |
-| Phase 7 | README + 포트폴리오 문서화 (최종 마무리) |
+| Phase 4 | 버그수정 + Docker 복구 + API 완성 + Placeholder 11개 + 수동수집 버튼 + 품질 |
+| Phase 5 | UI/UX 전면 개선 (모바일 + 시각언어 + 애니메이션 + 데이터 밀도 + Premium) |
+| Phase 6 | 미니게임 (다마고치 + 퀴즈 + 토너먼트 + 상점) |
+| Phase 7 | AWS 배포 + CI/CD + 부하테스트 (Terraform) |
+| Phase 8 | README + 포트폴리오 문서화 (절대 마지막) |
 
 #### 원칙 재확인 (창현님 결정)
 - 최종 결정은 항상 창현님이 한다
 - 팀원은 의견·근거·선택지 제시만 — 확정 선언 금지
+- 코드 주석 필수 — 나중에 코드 리뷰할 때 WHY를 알 수 있어야 함
+- Codex에 위임 가능한 작업은 프롬프트로 분리해서 넘기기
+
+#### 추가 발견 버그 (2026-05-27 18차 회의)
+
+| 버그 | 원인 | 수정 방법 | 상태 |
+|------|------|---------|------|
+| 완료 경주가 "데이터 수집 중" 깜빡임 | `DataStatusBadge.COLLECTED` 라벨이 "수집 중"으로 잘못 표기 | 라벨 → "수집 완료", 초록색, 깜빡임 제거 | ✅ `feat/phase4-bugfix` |
+| 몬테카를로 "계산 중..." 영구 표시 | `usePredictionSimulation` isError 미처리 → API 실패 시 무한 로딩 | isLoading/isError 분기 추가, 오류 UI 표시 | ✅ `feat/phase4-bugfix` |
+
+---
+
+### [날짜: 2026-05-28] 19차 세션 — BE API 완성 + KRA API 전면 확장
+
+- **참석**: ML, BE, ARCH, 창현님
+
+#### 작업 1: BE API 403/500 수정 (Phase 4-2)
+
+| 작업 | 결과 |
+|------|------|
+| SecurityConfig 공개 경로 추가 (`/home`, `/jockeys/{id}`, `/trainers/{id}`) | ✅ |
+| `GET /horses/{id}` — 없을 때 404 / HorseService + HorseController 구현 | ✅ |
+| `GET /jockeys/{id}` — JockeyController + JockeyService + JockeyResponse 신규 구현 | ✅ |
+| `GET /trainers/{id}` — TrainerController + TrainerService + TrainerResponse 신규 구현 | ✅ |
+| FE HorseDetailPage / TrainerDetailPage / RaceDetailPage 타입 정합성 수정 | ✅ |
+
+#### 작업 2: KRA API 전면 확장 (ml-server)
+
+**배경**: `마사회 API 정보.md` 전수 확인 → 구독 완료된 API 15종 중 실제 호출 중인 건 3종뿐. 나머지 12종 URL 오류 + 미구현 상태.
+
+**수정된 URL (오류 → 정상)**
+
+| API | 잘못된 URL | 올바른 URL |
+|-----|-----------|-----------|
+| jockeyInfo_1 | `currentjockeyInfo/getcurrentjockeyinfo` | `API12_1/jockeyInfo_1` |
+| trainerInfo_1 | `API308/trainerInfo` | `API19_1/trainerInfo_1` |
+
+**신규 추가된 fetch 메서드 (kra_api.py)**
+
+| 메서드 | API | 용도 |
+|--------|-----|------|
+| `fetch_jockey_result_list` | jockeyResult_1 | 기수 통산/최근1년 승률 직접 제공 |
+| `fetch_jockey_change_list` | jockeyChangeInfo_1 | 경주 당일 기수 변경 감지 |
+| `fetch_horse_result_list` | raceHorseResult_2 | 경주마 통산/최근1년 승률·복승률 |
+| `fetch_horse_detail_list` | raceHorseInfo_2 | 경주마 성별·혈통·생년월일 상세 |
+| `fetch_total_horse_info` | totalHorseInfo_1 | 말 번호로 단건 상세 조회 |
+| `fetch_track_conditions` | Track_1 | 경주로 함수율·날씨·상태 |
+| `fetch_integrated_odds` | integratedInfo_1 | 통합 배당 정보 |
+| `fetch_race_results_v3` | raceResult_3 | 경주 결과 v3 |
+
+**신규 collect/save 메서드 (data_service.py)**
+
+| 메서드 | 저장 내용 |
+|--------|---------|
+| `collect_horse_results` + `_save_horse_result_items` | win_rate_total/recent/place_rate_total (% → Decimal) + debut_year |
+| `collect_horse_details` + `_save_horse_detail_items` | sex / origin / birth_year / mother_name |
+| `collect_jockey_results` + `_save_jockey_result_items` | win_rate_total/recent/place_rate_total (% → Decimal) |
+| `collect_track_conditions` + `_save_track_condition_items` | moisture_level / weather / track_condition |
+
+**버그 수정 (trainerInfo_1)**
+- `birth_year` 하드코딩 `None` → `_parse_year_from_date8(item.get("birthday"))` 으로 수정
+
+#### 작업 3: Flyway V14 마이그레이션 신규 추가
+
+```sql
+-- horses 테이블
+ADD COLUMN win_rate_total   NUMERIC(5, 4)
+ADD COLUMN win_rate_recent  NUMERIC(5, 4)
+ADD COLUMN place_rate_total NUMERIC(5, 4)
+ADD COLUMN debut_year       INTEGER
+
+-- races 테이블
+ADD COLUMN moisture_level NUMERIC(4, 1)
+```
+
+#### 작업 4: 스케줄러 + 어드민 API 연동
+
+| 위치 | 변경 내용 |
+|------|---------|
+| `scheduler._collect_monthly_master` | 기수 성적 + 마필 성적 + 마필 상세 3종 추가 (jockeyResult_1, raceHorseResult_2, raceHorseInfo_2) |
+| `scheduler.collect_daily_info` | `_collect_daily_info_impl`로 분리 — 출전 정보 + **트랙 상태 동시 수집** |
+| `admin.RUNNABLE_JOBS` | collect_jockey_results / collect_horse_results / collect_horse_details / collect_track_conditions 4종 추가 |
+| `admin._dispatch_job` | 위 4종 수동 실행 분기 추가 |
+
+---
+
+---
+
+### [날짜: 2026-06-01] 21차 세션 — Codex prompt-8 직접 구현 (마스터 데이터 주간 동기화)
+- **참석**: ML, ARCH, 창현님
+
+#### 완료 작업
+
+| 구분 | 작업 | 파일 |
+|------|------|------|
+| ML | `fetch_total_horse_info_list` 신규 추가 — 경마장별 마필종합 전체 수집 | `kra_api.py` |
+| ML | `collect_horse_total_info` 신규 추가 — 부마명·모색·영문마명 upsert | `data_service.py` |
+| ML | `_save_horse_total_items` 신규 추가 — 기존 말의 혈통 정보 보완 전용 | `data_service.py` |
+| ML | `RUNNABLE_JOBS`에 `collect_horse_total_info` 등록 | `admin.py` |
+| ML | `_dispatch_job`에 `collect_horse_total_info` 분기 추가 | `admin.py` |
+| ML | `sync_master_data` 함수 신규 추가 — 6종 job 순차 실행 | `nightly_pipeline.py` |
+| ML | `main()`에 월요일 조건부 마스터 동기화 호출 추가 | `nightly_pipeline.py` |
+
+#### 구현 상세
+
+**`fetch_total_horse_info_list` (kra_api.py)**
+- 기존 `fetch_total_horse_info`(단건 hr_no/hr_name 조회)와 별도로 신규 추가
+- `meet` 파라미터로 경마장 전체 목록 수집 / `_fetch_all_pages` 활용
+
+**`_save_horse_total_items` 설계 결정**
+- DB에 이미 있는 말의 혈통 정보만 보완 (새 말 추가 금지)
+- `father_name`, `color` 등 not-None 필드만 setattr 업데이트
+
+**`sync_master_data` 실행 순서**
+```
+collect_master_jockeys → collect_master_trainers → collect_master_horses
+→ collect_horse_details → collect_jockey_results → collect_horse_total_info
+```
+- KRA API 한도(2,800콜) 소진 위험으로 월요일 1회만 실행
+- SKIPPED 시 해당 경마장만 건너뜀, 전체 파이프라인 계속 진행
+
+#### Phase 4 Codex 프롬프트 전체 완료
+
+| # | 프롬프트 | 상태 |
+|---|---------|------|
+| 01 | Docker 복구 | ✅ |
+| 02 | BE Security + API | ✅ |
+| 03 | 수동 수집 API + 관리자 화면 | ✅ |
+| 04 | FE 로그인/회원가입/카카오 | ✅ |
+| 05 | FE 경주결과 + AI해설 | ✅ |
+| 06 | 운영 품질 정리 | ✅ |
+| 07 | nightly_pipeline 결과 재수집 | ✅ |
+| 08 | 마스터 데이터 주간 동기화 | ✅ 2026-06-01 직접 구현 |
+
+#### 커밋
+```
+feat: [prompt-8] 마스터 데이터 주간 동기화 + 부마명/모색 수집
+```
+
+---
+
+### [날짜: 2026-05-28] 20차 세션 — 데이터 누락 진단 + 마스터 수집 실행 + Codex 프롬프트 #7~8
+
+- **참석**: ML, ARCH, FE, 창현님
+
+#### 이슈 1: FE 빌드 실패 (야간 파이프라인 에러)
+
+- **증상**: 2026-05-28 05:00 nightly_pipeline FE 빌드 → `{'success': False, 'error': ''}`
+- **원인**: `src/types/person.ts` 5번째 줄 — `MeetCode` 타입을 import 했으나 `meetCode: string`으로 선언 → TypeScript TS6133(미사용 import) 빌드 에러
+- **수정**: `Jockey`, `Trainer` 인터페이스의 `meetCode: string` → `meetCode: MeetCode` (타입 안전성도 향상)
+- **커밋**: `fix: person.ts에서 MeetCode import 미사용 TS 에러 수정`
+
+#### 이슈 2: 마체중·배당 누락 (5/23, 5/24 경주)
+
+**원인 분석**:
+- race_entries `horse_weight`, `odds_win` 컬럼: 5/17까지 정상 (131k건), 5/23~24 전부 null
+- race_entries 저장 경로 2종:
+  - `_save_entry_items` (schedule 수집) → horse_weight / odds_win **저장 안 함**
+  - `_save_result_items` (result 수집) → `wgHr`, `winOdds` 필드로 저장 ✅
+- 5/23, 5/24: schedule만 수집되어 race_entries 생성됨. bulk_collect가 result 시도 시점에 KRA API에 데이터 아직 없었음 → race_results 0건
+
+**즉시 조치 (수동 재수집)**:
+
+| 경마장·날짜 | 결과 | 수집 건수 |
+|------------|------|---------|
+| SC 2026-05-23 | SUCCESS | 109건 |
+| SC 2026-05-24 | SUCCESS | 108건 |
+| JJ 2026-05-23 | SUCCESS | 63건 |
+| BU 2026-05-24 | SUCCESS | 78건 |
+| BU 2026-05-23 | PARTIAL 0건 (경마 없음) | — |
+| JJ 2026-05-24 | PARTIAL 0건 (경마 없음) | — |
+
+- 5/25(일), 5/28(목): PARTIAL 0건 → 해당 날짜 경마 없음 (정상)
+
+**근본 해결 → Codex 프롬프트 #7** 작성:
+- `nightly_pipeline.py`에 Phase 0 추가: 최근 14일 중 race_results 없는 경주를 자동 results 재수집
+- 파일: `codex-prompts/phase4-07-nightly-result-resync.md`
+
+#### 이슈 3: 기수·조교사·말 상세 정보 전부 null
+
+**원인 분석**:
+
+| 테이블 | 건수 | birth_year | debut_year | win_rate_total |
+|--------|------|-----------|-----------|---------------|
+| jockeys | 164 | 0 | 0 | 0 |
+| trainers | 145 | 0 | 0 | 0 |
+| horses | 10,574 | - | - | father_name 0, color 0 |
+
+- `collect_master_jockeys`, `collect_master_trainers`, `collect_master_horses`, `collect_horse_details`, `collect_jockey_results` 함수가 이미 구현되어 있으나 nightly pipeline에 한 번도 연결 안 됨
+- admin.py `RUNNABLE_JOBS`에는 등록되어 수동 실행만 가능한 상태
+
+**즉시 조치**: Admin API로 SC/BU/JJ 전체 일괄 수집 실행 (백그라운드 진행)
+
+**근본 해결 → Codex 프롬프트 #8** 작성:
+- nightly_pipeline.py 매주 월요일 마스터 데이터 동기화 추가
+- `totalHorseInfo_1` API로 부마명(`faName`)·모색(`color`) 수집 코드 신규 추가 (kra_api.py + data_service.py + admin.py)
+- 파일: `codex-prompts/phase4-08-master-data-weekly-sync.md`
+
+#### 커밋 이력 (20차 세션)
+
+| 커밋 | 내용 |
+|------|------|
+| `fix: person.ts에서 MeetCode import 미사용 TS 에러 수정` | FE 빌드 에러 수정 |
+| `docs: Phase 4 Codex 프롬프트 #7~8 추가` | 결과 재수집 자동화 + 마스터 데이터 동기화 |
 
 ---
 
@@ -433,38 +789,33 @@
 ### 당장 해야 할 것 (Phase 4 우선순위 순)
 
 ```
-1. 🔴 Docker 복구 3종
-   - ML Dockerfile: python=:3.11-slim → python:3.11-slim
-   - docker-compose.yml ML DB URL: postgresql:// → postgresql+asyncpg://
-   - BE Dockerfile 작성 + Compose 실제 앱 연결
+✅ 완료
+  - DataStatusBadge COLLECTED 라벨 수정 ("수집 완료", 초록, 깜빡임 제거)
+  - 몬테카를로 isLoading/isError 분기 추가
+  - SecurityConfig 공개 경로 추가 (/home, /jockeys/{id}, /trainers/{id})
+  - /horses/{id} 구현 (404 처리 포함)
+  - /jockeys/{id} 신규 구현 (JockeyController + Service + DTO)
+  - /trainers/{id} 신규 구현 (TrainerController + Service + DTO)
+  - KRA API URL 오류 수정 (jockeyInfo_1, trainerInfo_1)
+  - KRA API 신규 fetch 8종 추가 (jockeyResult, horseResult, horseDetail, trackCondition 등)
+  - data_service.py 신규 collect/save 4종 (기수성적, 마필성적, 마필상세, 트랙상태)
+  - Flyway V14 마이그레이션 추가 (horses 4컬럼 + races 1컬럼)
+  - 월간 수집 스케줄러 완성 (_collect_monthly_master)
+  - 당일 수집 트랙 상태 포함 (_collect_daily_info_impl)
+  - admin.py RUNNABLE_JOBS 4종 + dispatch 분기 추가
+  - [20차] FE 빌드 에러 수정 (person.ts MeetCode TS6133)
+  - [20차] 5/23, 5/24 마체중·배당 수동 재수집 완료
+  - [20차] 기수/조교사/말 마스터 데이터 일괄 수집 실행
+  - [prompt-1~7] Docker 복구 / BE API / FE 화면 / 운영품질 / 결과재수집 자동화 ✅
+  - [prompt-8] 마스터 데이터 주간 동기화 + 부마명/모색 수집 ✅ 2026-06-01
 
-2. 🔴 BE API 구현 8종
-   - /horses/{id} / /jockeys/{id} / /trainers/{id} / /racecourses/{meetCode}
-   - /races/upcoming / /races/results / /dashboard/weekly 500 수정
-   - /home 403 수정 (SecurityConfig 공개 경로 추가)
-   - FastAPI 스케줄러 상태 API 실제 인스턴스 참조
-
-3. 🟡 FE Placeholder 화면 구현 11개
-   - 로그인 / 회원가입 / 카카오 콜백
-   - 경주 결과 / AI 해설
-   - 경주마 목록·상세·이력
-   - 경마장 목록·상세
-   - 관리자 대시보드·수집 현황
-
-4. 🟡 운영 품질 정리 8종
-   - UI 영어 문구 한글화
-   - 날씨 API Spring Boot 프록시 통일
-   - .gitignore 로그 파일 추가
-   - GitHub Actions 중복 정리
-   - 대시보드 isDemo 플래그
-   - FastAPI charset 명시
-   - 월간 마스터 수집 TODO 구현
+🔴 다음 — 없음. Phase 4 Codex 프롬프트 8개 전체 완료 ✅
 ```
 
-### 현재 브랜치 상태 (2026-05-27 기준)
-- `main` ← v3.0.1 태그 (버그픽스 최종) / v3.0.0 (Phase 3 완료)
+### 현재 브랜치 상태 (2026-05-28 기준)
+- `main` ← v3.0.1 태그 / `feat/phase4-bugfix` ← 현재 작업 중
 - `develop` ← main과 동기화 완료
-- 다음 브랜치: `feat/phase4-docker` 또는 `feat/phase4-be-api` 로 시작
+- 진행 순서: bugfix(현재) → docker → be-api 잔여 → fe-screens → quality
 
 ### 현재 실행 상태
 - ✅ Docker PostgreSQL (5432) + Redis (6379): healthy
@@ -472,6 +823,16 @@
 - ✅ FastAPI ML (8000): 실행 중 (venv 활성화 후 수동)
 - ✅ Task Scheduler 03:00 BulkCollect + 05:00 NightlyPipeline: SYSTEM 계정 (자동)
 - ⚠️ PC 재부팅 시 FastAPI + Spring Boot 수동 재실행 필요
+
+### 데이터 현황 (2026-05-28 기준)
+| 테이블 | 건수 | 비고 |
+|--------|------|------|
+| races | ~12,900+ | 5/23·24 결과 수집 완료 |
+| horses | 10,574 | father_name·color = 0 (Codex #8 적용 후 채워짐) |
+| race_entries | ~132,800+ | 5/23·24 마체중·배당 채워짐 |
+| race_results | ~132,400+ | 5/23·24 신규 수집 완료 |
+| jockeys | 164 | birth_year·win_rate 현재 0 (마스터 수집 후 채워짐) |
+| trainers | 145 | birth_year·win_rate 현재 0 (마스터 수집 후 채워짐) |
 
 ### 주요 파일 경로 참조
 ```
@@ -483,6 +844,7 @@ DB 마이그레이션:       racepulse/backend/src/main/resources/db/migration/
 Docker:               racepulse/docker-compose.yml
 ML Dockerfile:        racepulse/ml-server/Dockerfile
 자동화 스크립트:       racepulse/ml-server/scripts/
+Codex 프롬프트:       codex-prompts/ (phase4-01~08.md)
 진단 문서:            racepulse/PROJECT_ISSUE_AUDIT_2026-05-27.md
 회의록 v4:            horse_racing_team_v4.md (이 파일)
 ```

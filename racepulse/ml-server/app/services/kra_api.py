@@ -39,8 +39,25 @@ class KRARateLimitExceededError(KRAApiError):
 class KRAApiService:
     # 최신 공공데이터포털 공지 기준으로 실제 호출이 확인된 엔드포인트를 사용합니다.
     SCHEDULE_URL = "https://apis.data.go.kr/B551015/API72_2/racePlan_2"
-    ENTRY_URL = "https://apis.data.go.kr/B551015/API26_2/entrySheet_2"
-    RESULT_URL = "https://apis.data.go.kr/B551015/API214_1/RaceDetailResult_1"
+    ENTRY_URL    = "https://apis.data.go.kr/B551015/API26_2/entrySheet_2"
+    RESULT_URL   = "https://apis.data.go.kr/B551015/API214_1/RaceDetailResult_1"
+
+    # 마스터 데이터 전용 API — data.go.kr B551015 공개 명세 기준 (확인된 서비스URL)
+    JOCKEY_INFO_URL    = "https://apis.data.go.kr/B551015/API12_1/jockeyInfo_1"
+    JOCKEY_RESULT_URL  = "https://apis.data.go.kr/B551015/API11_1/jockeyResult_1"
+    JOCKEY_CHANGE_URL  = "https://apis.data.go.kr/B551015/API10_1/jockeyChangeInfo_1"
+    TRAINER_INFO_URL   = "https://apis.data.go.kr/B551015/API19_1/trainerInfo_1"
+    HORSE_LIST_URL     = "https://apis.data.go.kr/B551015/racehorselist/getracehorselist"
+    HORSE_RESULT_URL   = "https://apis.data.go.kr/B551015/API15_2/raceHorseResult_2"
+    HORSE_DETAIL_URL   = "https://apis.data.go.kr/B551015/API8_2/raceHorseInfo_2"
+    HORSE_TOTAL_URL    = "https://apis.data.go.kr/B551015/API42/totalHorseInfo_1"
+    TRACK_INFO_URL     = "https://apis.data.go.kr/B551015/API189_1/Track_1"
+    INTEGRATED_ODD_URL = "https://apis.data.go.kr/B551015/API160_1/integratedInfo_1"
+    RACE_RESULT_V3_URL = "https://apis.data.go.kr/B551015/API4_3/raceResult_3"
+    HORSE_RATING_URL   = "https://apis.data.go.kr/B551015/API77/raceHorseRating"
+
+    # 하위 호환을 위해 이전 이름도 유지합니다.
+    HORSE_INFO_URL = HORSE_LIST_URL
 
     def __init__(self, redis_client: Redis | None = None) -> None:
         self.redis_client = redis_client or get_redis_client()
@@ -149,6 +166,362 @@ class KRAApiService:
 
         # 그 외 예상치 못한 타입 → 빈 리스트로 안전하게 처리합니다.
         return []
+
+    async def fetch_jockey_list(
+        self,
+        meet: int,
+        num_of_rows: int = 500,
+    ) -> list[dict[str, Any]]:
+        """현직 기수 목록을 전체 페이지 수집합니다.
+
+        출처: data.go.kr 15056828 — 기수 상세정보 (API12_1/jockeyInfo_1)
+        응답 필드:
+          jkNo     — 기수번호 → license_no
+          jkName   — 기수명
+          part     — 소속조 → affiliation
+          birthday — 생년월일 YYYYMMDD → birth_year
+          debut    — 데뷔일자 YYYYMMDD → debut_year
+          rcCntT   — 통산 총출주횟수
+          ord1CntT — 통산 1착횟수  → win_rate_total = ord1CntT / rcCntT
+          ord2CntT — 통산 2착횟수
+          ord3CntT — 통산 3착횟수  → place_rate_total = (1+2+3) / rcCntT
+          rcCntY   — 최근1년 총출주횟수
+          ord1CntY — 최근1년 1착횟수 → win_rate_recent = ord1CntY / rcCntY
+        """
+        return await self._fetch_all_pages(
+            url=self.JOCKEY_INFO_URL,
+            base_params={
+                "serviceKey": settings.kma_api_key,
+                "meet": meet,
+                "_type": "json",
+            },
+            page_no=1,
+            num_of_rows=num_of_rows,
+        )
+
+    async def fetch_jockey_result_list(
+        self,
+        meet: int,
+        num_of_rows: int = 500,
+    ) -> list[dict[str, Any]]:
+        """현직 기수 성적(승률 직접 제공)을 전체 페이지 수집합니다.
+
+        출처: data.go.kr 15056591 — 기수 성적 정보 (API11_1/jockeyResult_1)
+        응답 필드:
+          jkNo     — 기수번호 → license_no
+          jkName   — 기수명
+          rcCntT   — 통산 총출주횟수
+          ord1CntT — 통산 1착횟수
+          ord2CntT — 통산 2착횟수
+          winRateT — 통산 승률 (% 단위, e.g. 15.3 → 0.153)
+          plcRateT — 통산 복승률 (% 단위)
+          rcCntY   — 최근1년 총출주횟수
+          ord1CntY — 최근1년 1착횟수
+          winRateY — 최근1년 승률 (% 단위)
+          plcRateY — 최근1년 복승률 (% 단위)
+        """
+        return await self._fetch_all_pages(
+            url=self.JOCKEY_RESULT_URL,
+            base_params={
+                "serviceKey": settings.kma_api_key,
+                "meet": meet,
+                "_type": "json",
+            },
+            page_no=1,
+            num_of_rows=num_of_rows,
+        )
+
+    async def fetch_jockey_change_list(
+        self,
+        meet: int,
+        rc_date: str,
+        num_of_rows: int = 100,
+    ) -> list[dict[str, Any]]:
+        """당일 기수 변경 정보를 수집합니다.
+
+        출처: data.go.kr 15057181 — 기수변경정보 (API10_1/jockeyChangeInfo_1)
+        응답 필드:
+          rcDate      — 경주일자
+          rcNo        — 경주번호
+          chgBefore   — 변경 전 기수명
+          chgAfter    — 변경 후 기수명
+          wgBefore    — 변경 전 부담중량
+          wgAfter     — 변경 후 부담중량
+        """
+        return await self._fetch_all_pages(
+            url=self.JOCKEY_CHANGE_URL,
+            base_params={
+                "serviceKey": settings.kma_api_key,
+                "meet": meet,
+                "rc_date": rc_date,
+                "_type": "json",
+            },
+            page_no=1,
+            num_of_rows=num_of_rows,
+        )
+
+    async def fetch_trainer_list(
+        self,
+        meet: int,
+        num_of_rows: int = 500,
+    ) -> list[dict[str, Any]]:
+        """현직 조교사 목록을 전체 페이지 수집합니다.
+
+        출처: data.go.kr 15057915 — 조교사 상세정보 (API19_1/trainerInfo_1)
+        응답 필드:
+          trNo      — 조교사번호 → license_no
+          trName    — 조교사명
+          part      — 소속조 → affiliation
+          birthday  — 생년월일 YYYYMMDD → birth_year
+          stDate    — 데뷔일자 → debut_year
+          rcCntT    — 통산 출주횟수
+          ord1CntT  — 통산 1착횟수
+          ord2CntT  — 통산 2착횟수
+          ord3CntT  — 통산 3착횟수
+          winRateT  — 통산 승률 (% 단위, e.g. 15.3 → 0.153 으로 변환)
+          plcRateT  — 통산 복승률 (% 단위)
+          conRateT  — 통산 연승률 (% 단위)
+          rcCntY    — 최근1년 출주횟수
+          winRateY  — 최근1년 승률 (% 단위)
+          plcRateY  — 최근1년 복승률 (% 단위)
+        """
+        return await self._fetch_all_pages(
+            url=self.TRAINER_INFO_URL,
+            base_params={
+                "serviceKey": settings.kma_api_key,
+                "meet": meet,
+                "_type": "json",
+            },
+            page_no=1,
+            num_of_rows=num_of_rows,
+        )
+
+    async def fetch_horse_list(
+        self,
+        meet: int,
+        num_of_rows: int = 500,
+    ) -> list[dict[str, Any]]:
+        """경마장별 현역 경주마 명단을 전체 페이지 수집합니다.
+
+        출처: data.go.kr 15089503 — 경주마명단 (racehorselist/getracehorselist)
+        응답 필드:
+          hrNo     — 마번
+          hrName   — 마명
+          nameSp   — 소속조 (예: "40조") — eng_name 아님
+          sex      — 성별
+          prdCty   — 생산국 → origin
+          rating1~4 — 레이팅
+        """
+        return await self._fetch_all_pages(
+            url=self.HORSE_LIST_URL,
+            base_params={
+                "serviceKey": settings.kma_api_key,
+                "meet": meet,
+                "_type": "json",
+            },
+            page_no=1,
+            num_of_rows=num_of_rows,
+        )
+
+    async def fetch_horse_result_list(
+        self,
+        meet: int,
+        num_of_rows: int = 500,
+    ) -> list[dict[str, Any]]:
+        """경주마 성적 정보(통산/최근1년 승률·복승률)를 전체 페이지 수집합니다.
+
+        출처: data.go.kr 15058779 — 경주마 성적 정보 (API15_2/raceHorseResult_2)
+        응답 필드:
+          hrName   — 마명
+          hrNo     — 마번
+          prdCty   — 산지
+          sex      — 성별
+          age      — 나이
+          debut    — 데뷔일자 YYYYMMDD → debut_year
+          rcCntT   — 통산 총출주횟수
+          ord1CntT — 통산 1착횟수
+          ord2CntT — 통산 2착횟수
+          winRateT — 통산 승률 (% 단위)
+          plcRateT — 통산 복승률 (% 단위)
+          rcCntY   — 최근1년 총출주횟수
+          ord1CntY — 최근1년 1착횟수
+          ord2CntY — 최근1년 2착횟수
+          winRateY — 최근1년 승률 (% 단위)
+          plcRateY — 최근1년 복승률 (% 단위)
+          prizeSum — 통산 착순상금
+        """
+        return await self._fetch_all_pages(
+            url=self.HORSE_RESULT_URL,
+            base_params={
+                "serviceKey": settings.kma_api_key,
+                "meet": meet,
+                "_type": "json",
+            },
+            page_no=1,
+            num_of_rows=num_of_rows,
+        )
+
+    async def fetch_horse_detail_list(
+        self,
+        meet: int,
+        num_of_rows: int = 500,
+    ) -> list[dict[str, Any]]:
+        """현역 경주마 상세정보(모마명 포함)를 전체 페이지 수집합니다.
+
+        출처: data.go.kr 15058115 — 경주마 상세정보 (API8_2/raceHorseInfo_2)
+        응답 필드:
+          hrName   — 마명
+          hrNo     — 마번
+          prdCty   — 출생지(산지)
+          sex      — 성별
+          birthday — 생년월일 YYYYMMDD → birth_year
+          trName   — 조교사명
+          owName   — 마주명
+          motherName (또는 mName) — 모마명 → mother_name
+          rcCntT, ord1CntT, ord2CntT, ord3CntT — 통산 성적
+          rcCntY, ord1CntY, ord2CntY, ord3CntY — 최근1년 성적
+          rating   — 현재 레이팅
+        """
+        return await self._fetch_all_pages(
+            url=self.HORSE_DETAIL_URL,
+            base_params={
+                "serviceKey": settings.kma_api_key,
+                "meet": meet,
+                "_type": "json",
+            },
+            page_no=1,
+            num_of_rows=num_of_rows,
+        )
+
+    async def fetch_total_horse_info(
+        self,
+        hr_no: str | None = None,
+        hr_name: str | None = None,
+        num_of_rows: int = 10,
+    ) -> list[dict[str, Any]]:
+        """마필종합 상세정보(부마·모마·외조부마 혈통 포함)를 단건 조회합니다.
+
+        출처: data.go.kr 15057985 — 마필종합 상세정보 (API42/totalHorseInfo_1)
+        단건 조회이므로 hr_no 또는 hr_name 중 하나는 반드시 전달해야 합니다.
+        응답 필드: 부마명(fatherName), 모마명(motherName), 외조부마명(grandfatherName), 혈통 등
+        """
+        params: dict[str, Any] = {
+            "serviceKey": settings.kma_api_key,
+            "_type": "json",
+        }
+        if hr_no:
+            params["hr_no"] = hr_no
+        if hr_name:
+            params["hr_name"] = hr_name
+        return await self._fetch_all_pages(
+            url=self.HORSE_TOTAL_URL,
+            base_params=params,
+            page_no=1,
+            num_of_rows=num_of_rows,
+        )
+
+    async def fetch_total_horse_info_list(
+        self,
+        meet: int,
+        num_of_rows: int = 100,
+    ) -> list[dict[str, Any]]:
+        """경마장별 마필종합 상세정보(부마명·모색·영문마명)를 전체 페이지 수집합니다.
+
+        출처: data.go.kr 15057985 — 마필종합 상세정보 (API42/totalHorseInfo_1)
+        fetch_total_horse_info(단건)와 달리 meet 파라미터로 경마장 전체 목록을 수집합니다.
+        주간 마스터 동기화에서 father_name·color·eng_name 일괄 보완 목적으로 사용합니다.
+        응답 주요 필드:
+          hrName    — 마명
+          hrEngName — 영문마명 → eng_name
+          faName    — 부마명   → father_name
+          moName    — 모마명   → mother_name
+          color     — 모색     → color
+        """
+        return await self._fetch_all_pages(
+            url=self.HORSE_TOTAL_URL,
+            base_params={
+                "serviceKey": settings.kma_api_key,
+                "meet": meet,
+                "_type": "json",
+            },
+            page_no=1,
+            num_of_rows=num_of_rows,
+        )
+
+    async def fetch_track_conditions(
+        self,
+        meet: int,
+        rc_date: str,
+        num_of_rows: int = 50,
+    ) -> list[dict[str, Any]]:
+        """당일 경마장 경주로 상태(함수율·날씨·주로상태)를 수집합니다.
+
+        출처: data.go.kr 15063953 — 경주로정보 (API189_1/Track_1)
+        응답 필드:
+          meet          — 경마장
+          rcDate        — 경주일자
+          rcNo          — 경주번호
+          moistContent  — 함수율 (%, e.g. 8.5)
+          weather       — 날씨 (맑음/흐림/비/눈 등)
+          budrCondition — 경주로상태 (건조/양호/다습/포화/불량)
+        """
+        return await self._fetch_all_pages(
+            url=self.TRACK_INFO_URL,
+            base_params={
+                "serviceKey": settings.kma_api_key,
+                "meet": meet,
+                "rc_date": rc_date,
+                "_type": "json",
+            },
+            page_no=1,
+            num_of_rows=num_of_rows,
+        )
+
+    async def fetch_integrated_odds(
+        self,
+        meet: int,
+        rc_date: str,
+        num_of_rows: int = 200,
+    ) -> list[dict[str, Any]]:
+        """당일 경주 확정배당율 통합 정보를 수집합니다.
+
+        출처: data.go.kr 15058559 — 확정배당율 통합 정보 (API160_1/integratedInfo_1)
+        응답 필드: 경주번호, 1착마 출주번호, 2착마 출주번호, 승식구분(WIN/PLC/QNL 등), 배당률
+        """
+        return await self._fetch_all_pages(
+            url=self.INTEGRATED_ODD_URL,
+            base_params={
+                "serviceKey": settings.kma_api_key,
+                "meet": meet,
+                "rc_date": rc_date,
+                "_type": "json",
+            },
+            page_no=1,
+            num_of_rows=num_of_rows,
+        )
+
+    async def fetch_race_results_v3(
+        self,
+        meet: int,
+        rc_date: str,
+        num_of_rows: int = 200,
+    ) -> list[dict[str, Any]]:
+        """경주기록 정보(영문마명·영문기수명·구간기록 포함)를 수집합니다.
+
+        출처: data.go.kr 15058305 — 경주기록 정보 (API4_3/raceResult_3)
+        기존 RaceDetailResult_1 대비 영문명, 구간별 기록이 추가된 버전입니다.
+        """
+        return await self._fetch_all_pages(
+            url=self.RACE_RESULT_V3_URL,
+            base_params={
+                "serviceKey": settings.kma_api_key,
+                "meet": meet,
+                "rc_date": rc_date,
+                "_type": "json",
+            },
+            page_no=1,
+            num_of_rows=num_of_rows,
+        )
 
     async def fetch_race_schedule(
         self,

@@ -16,6 +16,7 @@ import com.racepulse.backend.global.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -35,6 +36,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -61,6 +63,7 @@ public class SecurityConfig {
                         // 인증 없이 접근 가능한 경로들
                         .requestMatchers(
                                 "/api/v1/health",
+                                "/api/v1/home",
                                 "/api/v1/auth/**",          // 로그인, 회원가입, 카카오 OAuth
                                 "/api/v1/push/vapid-public-key", // VAPID 공개키는 인증 없이 조회 가능
                                 "/swagger-ui/**",
@@ -80,6 +83,10 @@ public class SecurityConfig {
                                 "/api/v1/predictions/**",
                                 "/api/v1/horses",
                                 "/api/v1/horses/**",
+                                "/api/v1/jockeys",
+                                "/api/v1/jockeys/**",
+                                "/api/v1/trainers",
+                                "/api/v1/trainers/**",
                                 "/api/v1/search",
                                 "/api/v1/search/**",
                                 "/api/v1/privacy",

@@ -44,6 +44,10 @@ class Horse(Base):
     rating_4: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 2))
     coat_color: Mapped[Optional[str]] = mapped_column(String(50))
     body_type: Mapped[Optional[str]] = mapped_column(String(50))
+    debut_year: Mapped[Optional[int]]
+    win_rate_total: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 4))
+    win_rate_recent: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 4))
+    place_rate_total: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 4))
     photo_url: Mapped[Optional[str]]
     thumbnail_url: Mapped[Optional[str]]
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -64,6 +68,10 @@ class Jockey(Base):
     eng_name: Mapped[Optional[str]] = mapped_column(String(100))
     meet_code: Mapped[Optional[str]] = mapped_column(String(2))
     license_no: Mapped[Optional[str]] = mapped_column(String(20))
+    birth_year: Mapped[Optional[int]]
+    debut_year: Mapped[Optional[int]]
+    affiliation: Mapped[Optional[str]] = mapped_column(String(10))
+    photo_url: Mapped[Optional[str]]
     win_rate_total: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 4))
     win_rate_recent: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 4))
     place_rate_total: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 4))
@@ -82,6 +90,10 @@ class Trainer(Base):
     eng_name: Mapped[Optional[str]] = mapped_column(String(100))
     meet_code: Mapped[Optional[str]] = mapped_column(String(2))
     license_no: Mapped[Optional[str]] = mapped_column(String(20))
+    birth_year: Mapped[Optional[int]]
+    debut_year: Mapped[Optional[int]]
+    affiliation: Mapped[Optional[str]] = mapped_column(String(10))
+    photo_url: Mapped[Optional[str]]
     win_rate_total: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 4))
     win_rate_recent: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 4))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
